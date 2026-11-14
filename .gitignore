@@ -1,0 +1,12 @@
+# Local secrets and generated artifacts
+.env
+.env.*
+!.env.example
+.local/
+*.local.ps1
+.clinic-test-location
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+database/backups/

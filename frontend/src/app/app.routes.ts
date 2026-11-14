@@ -1,0 +1,126 @@
+import { Routes } from '@angular/router';
+import { authGuard, guestGuard, permissionGuard } from './core/auth.guards';
+import { DashboardComponent } from './pages/dashboard/dashboard.component';
+import { ClientsComponent } from './pages/clients/clients.component';
+import { EquipmentComponent } from './pages/equipment/equipment.component';
+import { LoginComponent } from './pages/login/login.component';
+import { ModulePlaceholderComponent } from './pages/module-placeholder/module-placeholder.component';
+import { UsersComponent } from './pages/users/users.component';
+import { OrdersComponent } from './pages/orders/orders.component';
+import { AssignedOrdersComponent } from './pages/orders/assigned-orders.component';
+import { OrderDetailComponent } from './pages/orders/order-detail.component';
+import { TechnicalAttentionComponent } from './pages/orders/technical-attention.component';
+import { PrediagnosisComponent } from './pages/orders/prediagnosis.component';
+import { MainLayoutComponent } from './shared/main-layout/main-layout.component';
+
+export const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: '/login' },
+  { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
+  {
+    path: 'consulta-servicio',
+    loadComponent: () => import('./pages/tracking/public-tracking.component')
+      .then((module) => module.PublicTrackingComponent),
+  },
+  {
+    path: '',
+    component: MainLayoutComponent,
+    canActivate: [authGuard],
+    canActivateChild: [permissionGuard],
+    children: [
+      { path: 'dashboard', component: DashboardComponent, data: { permission: 'dashboard' } },
+      {
+        path: 'clientes',
+        component: ClientsComponent,
+        data: { title: 'Clientes', permission: 'clients' },
+      },
+      {
+        path: 'equipos/:id/historial',
+        loadComponent: () => import('./pages/equipment-history/equipment-history.component')
+          .then((module) => module.EquipmentHistoryComponent),
+        data: { permission: 'equipment' },
+      },
+      {
+        path: 'equipos',
+        component: EquipmentComponent,
+        data: { title: 'Equipos', permission: 'equipment' },
+      },
+      {
+        path: 'ordenes',
+        component: OrdersComponent,
+        data: { title: 'Órdenes de Servicio', permission: 'orders' },
+      },
+      {
+        path: 'ordenes/:id',
+        component: OrderDetailComponent,
+        data: { permission: 'orders' },
+      },
+      {
+        path: 'mis-ordenes',
+        component: AssignedOrdersComponent,
+        data: { title: 'Mis Órdenes Asignadas', permission: 'assigned-orders' },
+      },
+      {
+        path: 'mis-ordenes/:id',
+        component: OrderDetailComponent,
+        data: { permission: 'assigned-orders' },
+      },
+      {
+        path: 'atencion/:id',
+        component: TechnicalAttentionComponent,
+        data: { permission: 'attend-orders' },
+      },
+      {
+        path: 'prediagnostico',
+        component: PrediagnosisComponent,
+        data: { title: 'Prediagnóstico con IA', permission: 'ai-prediagnosis' },
+      },
+      {
+        path: 'seguimiento/:id',
+        loadComponent: () => import('./pages/tracking/service-tracking.component')
+          .then((module) => module.ServiceTrackingComponent),
+        data: { permission: 'service-tracking' },
+      },
+      {
+        path: 'seguimiento',
+        loadComponent: () => import('./pages/tracking/service-tracking.component')
+          .then((module) => module.ServiceTrackingComponent),
+        data: { title: 'Seguimiento de Servicio', permission: 'service-tracking' },
+      },
+      {
+        path: 'indicadores',
+        loadComponent: () => import('./pages/indicators/indicators.component')
+          .then((module) => module.IndicatorsComponent),
+        data: { title: 'Indicadores de Servicios', permission: 'service-indicators' },
+      },
+      {
+        path: 'auditoria',
+        loadComponent: () => import('./pages/audit/audit.component')
+          .then((module) => module.AuditComponent),
+        data: { title: 'Auditoría', permission: 'settings' },
+      },
+      {
+        path: 'respaldos',
+        loadComponent: () => import('./pages/backups/backups.component')
+          .then((module) => module.BackupsComponent),
+        data: { title: 'Respaldos', permission: 'settings' },
+      },
+      {
+        path: 'monitoreo',
+        loadComponent: () => import('./pages/monitoring/monitoring.component')
+          .then((module) => module.MonitoringComponent),
+        data: { title: 'Monitoreo', permission: 'settings' },
+      },
+      {
+        path: 'usuarios',
+        component: UsersComponent,
+        data: { permission: 'users' },
+      },
+      {
+        path: 'configuracion',
+        component: ModulePlaceholderComponent,
+        data: { title: 'Configuración', permission: 'settings' },
+      },
+    ],
+  },
+  { path: '**', redirectTo: 'login' },
+];

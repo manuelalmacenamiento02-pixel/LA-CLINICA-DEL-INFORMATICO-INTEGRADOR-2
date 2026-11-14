@@ -1,0 +1,61 @@
+<main class="public-tracking-page">
+  <a class="public-tracking-brand" routerLink="/login" aria-label="Volver al inicio">
+    <span class="sidebar-logo" aria-hidden="true"><app-icon name="laptop" /></span>
+    <span>LA CLÍNICA<br />DEL INFORMÁTICO</span>
+  </a>
+  <section class="public-tracking-card" aria-labelledby="public-tracking-title">
+    <div class="public-tracking-heading">
+      <span class="public-tracking-icon"><app-icon name="search" /></span>
+      <h1 id="public-tracking-title">Consultar mi servicio</h1>
+      <p>Ingresa el código de tu orden y el teléfono asociado al servicio.</p>
+    </div>
+
+    <form class="public-tracking-form" (ngSubmit)="consult()" novalidate>
+      <div class="form-field">
+        <label for="public-order-code">Código de orden</label>
+        <input id="public-order-code" name="orderCode" type="text" maxlength="20"
+          placeholder="OS-000123" autocomplete="off" [(ngModel)]="code" required />
+        @if (submitted && !validCode) {
+          <small class="field-error">Ingresa el código de orden con formato OS-000123.</small>
+        }
+      </div>
+      <div class="form-field">
+        <label for="public-phone">Teléfono registrado en el servicio</label>
+        <input id="public-phone" name="verificationPhone" type="tel" maxlength="30"
+          placeholder="Número de teléfono asociado" autocomplete="tel" [(ngModel)]="phone" required />
+        @if (submitted && !phone.trim()) { <small class="field-error">El teléfono es obligatorio para verificar el servicio.</small> }
+      </div>
+      @if (error()) { <p class="users-feedback error" role="alert">{{ error() }}</p> }
+      <button class="primary-button" type="submit" [disabled]="busy() > 0">
+        <app-icon name="search" /> Consultar servicio
+      </button>
+    </form>
+
+    @if (result(); as item) {
+      <section class="public-tracking-result" aria-labelledby="public-result-title">
+        <div class="public-result-heading">
+          <div><span class="modal-eyebrow">SERVICIO</span><h2 id="public-result-title">{{ item.code }}</h2></div>
+          <span class="status-badge" [class]="'status-badge status-' + item.status.toLowerCase()">{{ statusLabel(item.status) }}</span>
+        </div>
+        <dl class="public-result-facts">
+          <div><dt>Tipo de equipo</dt><dd>{{ item.equipmentType }}</dd></div>
+          <div><dt>Fecha de ingreso</dt><dd>{{ item.receivedDate | date: 'dd/MM/yyyy' }}</dd></div>
+          @if (item.finalizedAt) {
+            <div><dt>Fecha de finalización</dt><dd>{{ item.finalizedAt | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+          }
+        </dl>
+        <h3>Avance del servicio</h3>
+        <ol class="service-timeline public-service-timeline">
+          @for (step of item.timeline; track step.code) {
+            <li [class.completed]="step.completed" [class.current]="currentStep(item.status) === step.code">
+              <span class="service-timeline-marker"><app-icon [name]="step.completed ? 'check' : 'clock'" /></span>
+              <div><strong>{{ step.label }}</strong><p>{{ step.occurredAt ? (step.occurredAt | date: 'dd/MM/yyyy HH:mm') : 'Etapa pendiente' }}</p></div>
+            </li>
+          }
+        </ol>
+      </section>
+    }
+
+    <a class="public-return-link" routerLink="/login">Volver al inicio</a>
+  </section>
+</main>

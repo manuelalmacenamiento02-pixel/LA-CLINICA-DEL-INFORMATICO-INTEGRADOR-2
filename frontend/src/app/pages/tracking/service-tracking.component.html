@@ -1,0 +1,133 @@
+<section aria-labelledby="service-tracking-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="service-tracking-title">Seguimiento de Servicio</h1>
+      <p>Consulta el estado y avance de las órdenes de servicio.</p>
+    </div>
+    @if (detail()) {
+      <a class="outline-button history-back-button" routerLink="/seguimiento">Volver a órdenes</a>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="order-loading" role="status">Consultando el estado actual del servicio...</p>
+  } @else if (error()) {
+    <p class="users-feedback error" role="alert">{{ error() }}</p>
+  } @else if (detail(); as item) {
+    <section class="tracking-overview table-card">
+      <div class="table-card-header">
+        <div>
+          <span class="modal-eyebrow">ORDEN {{ item.code }}</span>
+          <h2>{{ item.equipmentType }} · {{ item.brand }} {{ item.model }}</h2>
+        </div>
+        <span class="status-badge" [class]="'status-badge status-' + item.status.toLowerCase()">{{ statusLabel(item.status) }}</span>
+      </div>
+      <dl class="equipment-history-facts">
+        <div><dt>Fecha de ingreso</dt><dd>{{ item.receivedDate | date: 'dd/MM/yyyy' }}</dd></div>
+        <div><dt>Técnico responsable</dt><dd>{{ item.technicianName || 'Sin asignar' }}</dd></div>
+        <div><dt>Prioridad</dt><dd>{{ item.priority }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="table-card tracking-timeline-card" aria-labelledby="tracking-timeline-title">
+      <div class="table-card-header">
+        <div><h2 id="tracking-timeline-title">Línea de tiempo del servicio</h2><p>Etapas basadas en eventos registrados.</p></div>
+      </div>
+      <ol class="service-timeline">
+        @for (step of item.timeline; track step.code) {
+          <li [class.completed]="step.completed" [class.current]="currentStep(item.status) === step.code">
+            <span class="service-timeline-marker">
+              <app-icon [name]="step.completed ? 'check' : 'clock'" />
+            </span>
+            <div>
+              <strong>{{ step.label }}</strong>
+              <p>{{ step.occurredAt ? (step.occurredAt | date: 'dd/MM/yyyy HH:mm') : 'Etapa pendiente' }}</p>
+            </div>
+          </li>
+        }
+      </ol>
+    </section>
+
+    <section class="table-card tracking-internal-detail">
+      <div class="table-card-header"><div><h2>Detalle interno de la orden</h2></div></div>
+      <dl class="order-detail-list">
+        <div class="order-long-text"><dt>Problema reportado</dt><dd>{{ item.reportedProblem }}</dd></div>
+        @if (item.status === 'FINALIZADA' || item.status === 'CERRADA') {
+          <div class="order-long-text"><dt>Diagnóstico definitivo</dt><dd>{{ item.diagnosis || 'No disponible' }}</dd></div>
+          <div class="order-long-text"><dt>Actividades realizadas</dt><dd>{{ item.actionsPerformed || 'No registradas' }}</dd></div>
+          <div class="order-long-text"><dt>Pruebas efectuadas</dt><dd>{{ item.performedTests || 'No registradas' }}</dd></div>
+          <div class="order-long-text"><dt>Resultado</dt><dd>{{ item.resultSummary || 'No registrado' }}</dd></div>
+        }
+      </dl>
+      @if (item.validatedPrediagnoses.length) {
+        <section class="historical-ai-panel" aria-label="Prediagnósticos de IA validados">
+          <h3>Prediagnósticos asistidos por IA validados</h3>
+          <p>Son recomendaciones revisadas por un técnico y no reemplazan el diagnóstico definitivo.</p>
+          @for (prediction of item.validatedPrediagnoses; track prediction.validatedAt) {
+            <article>
+              <strong>{{ prediction.decision }} · {{ prediction.validatedAt | date: 'dd/MM/yyyy HH:mm' }}</strong>
+              @if (prediction.modifiedResult) { <pre>{{ prediction.modifiedResult }}</pre> }
+              @else { <pre>{{ prediction.originalResult }}</pre> }
+              @if (prediction.observations) { <p>{{ prediction.observations }}</p> }
+            </article>
+          }
+        </section>
+      }
+    </section>
+  } @else {
+    <section class="table-card" aria-label="Listado de órdenes">
+      <form class="module-toolbar orders-filters" (ngSubmit)="searchOrders()">
+        <label class="module-search" for="tracking-search">
+          <app-icon name="search" />
+          <input id="tracking-search" name="trackingSearch" type="search" maxlength="100"
+            placeholder="Buscar por código, cliente o equipo" [(ngModel)]="search" />
+        </label>
+        <label class="orders-status-filter">
+          Estado
+          <select name="trackingStatus" [(ngModel)]="status">
+            <option value="">Todos</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="ASIGNADA">Asignada</option>
+            <option value="EN_ATENCION">En atención</option>
+            <option value="FINALIZADA">Finalizada</option>
+            <option value="CERRADA">Cerrada</option>
+            <option value="CANCELADA">Cancelada</option>
+          </select>
+        </label>
+        <button class="primary-button compact-button" type="submit">Buscar</button>
+      </form>
+      @if (orders().length) {
+        <div class="orders-table-wrap">
+          <table class="orders-table service-tracking-table">
+            <thead>
+              <tr>
+                <th scope="col">CÓDIGO</th>
+                <th scope="col">CLIENTE</th>
+                <th scope="col">EQUIPO</th>
+                <th scope="col">FECHA DE INGRESO</th>
+                <th scope="col">TÉCNICO</th>
+                <th scope="col">ESTADO</th>
+                <th scope="col">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of orders(); track order.id) {
+                <tr>
+                  <td class="order-id">{{ order.code }}</td>
+                  <td>{{ order.clientName || 'Cliente' }}</td>
+                  <td>{{ order.equipmentType }} {{ order.brand }} {{ order.model }}</td>
+                  <td>{{ order.receivedDate | date: 'dd/MM/yyyy' }}</td>
+                  <td>{{ order.technicianName || 'Sin asignar' }}</td>
+                  <td><span class="status-badge" [class]="'status-badge status-' + order.status.toLowerCase()">{{ statusLabel(order.status) }}</span></td>
+                  <td><a class="table-action action-view" [routerLink]="['/seguimiento', order.id]"><app-icon name="eye" /> Ver seguimiento</a></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="equipment-history-empty">No hay órdenes que coincidan con la búsqueda.</p>
+      }
+    </section>
+  }
+</section>

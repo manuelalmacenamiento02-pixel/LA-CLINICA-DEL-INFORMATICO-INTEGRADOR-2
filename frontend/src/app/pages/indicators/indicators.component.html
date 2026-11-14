@@ -1,0 +1,66 @@
+<section aria-labelledby="indicators-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="indicators-title">Indicadores de Servicios</h1>
+      <p>Resumen calculado desde las órdenes registradas en PostgreSQL.</p>
+    </div>
+  </div>
+
+  <form class="indicator-filters" (ngSubmit)="refresh()">
+    <label>Fecha inicial <input type="date" name="from" [(ngModel)]="from" /></label>
+    <label>Fecha final <input type="date" name="to" [(ngModel)]="to" /></label>
+    <label>Estado
+      <select name="status" [(ngModel)]="status">
+        <option value="">Todos</option>
+        <option value="PENDIENTE">Pendiente</option>
+        <option value="ASIGNADA">Asignada</option>
+        <option value="EN_ATENCION">En atención</option>
+        <option value="FINALIZADA">Finalizada</option>
+        <option value="CERRADA">Cerrada</option>
+        <option value="CANCELADA">Cancelada</option>
+      </select>
+    </label>
+    <label>Técnico
+      <select name="technician" [(ngModel)]="technician">
+        <option value="">Todos</option>
+        @for (user of store.users(); track user.id) {
+          @if (user.role === 'TÉCNICO') {
+            <option [value]="user.id">{{ user.firstName }} {{ user.lastName }}</option>
+          }
+        }
+      </select>
+    </label>
+    <button class="primary-button" type="submit" [disabled]="loading()">Aplicar filtros</button>
+  </form>
+
+  @if (error()) { <p class="users-feedback error" role="alert">{{ error() }}</p> }
+  @if (loading()) { <p role="status">Consultando indicadores…</p> }
+  @if (report(); as data) {
+    <div class="stats-grid">
+      <article class="stat-card"><span class="stat-label">Total de servicios</span><p class="stat-value">{{ data.total }}</p></article>
+      <article class="stat-card"><span class="stat-label">Servicios finalizados</span><p class="stat-value">{{ data.finalized }}</p></article>
+      <article class="stat-card"><span class="stat-label">Servicios pendientes</span><p class="stat-value">{{ data.pending }}</p></article>
+      <article class="stat-card"><span class="stat-label">Servicios en atención</span><p class="stat-value">{{ data.in_progress }}</p></article>
+      <article class="stat-card"><span class="stat-label">Porcentaje finalizado</span><p class="stat-value">{{ percent(data.finalized_percentage) }}</p></article>
+      <article class="stat-card"><span class="stat-label">Promedio de atención finalizada</span><p class="stat-value">{{ averageHours(data.average_attention_hours) }}</p></article>
+    </div>
+
+    <section class="table-section" aria-labelledby="technician-report-title">
+      <div class="dashboard-section-heading">
+        <div><h2 id="technician-report-title">Servicios por técnico</h2><p>Órdenes sin duplicar por técnico.</p></div>
+      </div>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Técnico</th><th>Servicios atendidos</th><th>Finalizados</th></tr></thead>
+          <tbody>
+            @for (item of data.byTechnician; track item.technicianId) {
+              <tr><td>{{ item.technicianName }}</td><td>{{ item.total }}</td><td>{{ item.finalized }}</td></tr>
+            } @empty {
+              <tr><td colspan="3">Sin datos para los filtros seleccionados.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</section>

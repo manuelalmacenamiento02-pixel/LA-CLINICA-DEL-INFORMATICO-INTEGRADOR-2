@@ -1,0 +1,99 @@
+<div class="app-shell">
+  <button
+    class="sidebar-overlay"
+    [class.visible]="menuOpen()"
+    type="button"
+    aria-label="Cerrar menú"
+    (click)="closeMenu()"
+  ></button>
+
+  <aside class="sidebar" [class.mobile-open]="menuOpen()" aria-label="Navegación principal">
+    <a class="sidebar-brand" routerLink="/dashboard" (click)="closeMenu()">
+      <span class="sidebar-logo" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none">
+          <rect x="4" y="5" width="32" height="23" rx="3" stroke="currentColor" stroke-width="2.5" />
+          <path d="M14 35h12M20 28v7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          <path d="M23.5 12.2a5.4 5.4 0 0 0-6.8 6.8l-4.2 4.2 3.1 3.1 4.2-4.2a5.4 5.4 0 0 0 6.8-6.8l-3.4 3.4-3.1-3.1z" fill="currentColor" />
+        </svg>
+      </span>
+      <span class="sidebar-brand-name">LA CLÍNICA<br />DEL INFORMÁTICO</span>
+    </a>
+
+    <p class="sidebar-section-label">Menú principal</p>
+    <nav class="sidebar-nav">
+      @for (item of primaryNavigation(); track item.path) {
+        <a
+          class="sidebar-link"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          (click)="closeMenu()"
+        >
+          <app-icon [name]="item.icon" />
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    @if (hasSettingsNavigation) {
+      <div class="sidebar-bottom">
+        <p class="sidebar-section-label">Sistema</p>
+        <nav class="sidebar-nav">
+          @for (item of settingsNavigation(); track item.path) {
+            <a
+              class="sidebar-link"
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              (click)="closeMenu()"
+            >
+              <app-icon [name]="item.icon" />
+              <span>{{ item.label }}</span>
+            </a>
+          }
+        </nav>
+      </div>
+    }
+  </aside>
+
+  <div class="main-column">
+    <header class="topbar">
+      <div class="topbar-leading">
+        <button
+          class="icon-button topbar-mobile-menu"
+          type="button"
+          aria-label="Abrir menú"
+          (click)="menuOpen.set(!menuOpen())"
+        >
+          <app-icon name="menu" />
+        </button>
+        <p class="topbar-title">Panel de gestión</p>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="icon-button" type="button" aria-label="Notificaciones">
+          <app-icon name="bell" />
+        </button>
+        <div class="profile-summary">
+          <span class="profile-avatar">{{ profileInitials() }}</span>
+          <span class="profile-copy">
+            <span class="profile-name">{{ profileName() }}</span>
+            <span class="profile-role">{{ profileRole() }}</span>
+          </span>
+        </div>
+        <button class="logout-button" type="button" aria-label="Cerrar sesión" (click)="signOut()">
+          <app-icon name="logout" />
+          <span class="logout-label">Cerrar sesión</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      @if (serverError()) {
+        <p class="users-feedback error" role="alert">{{ serverError() }}
+          @if (!currentUser()) { <a routerLink="/login">Iniciar sesión</a> }
+        </p>
+      }
+      <router-outlet />
+    </main>
+  </div>
+</div>

@@ -1,0 +1,404 @@
+<section aria-labelledby="users-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="users-title">USUARIOS</h1>
+      <p>Gestión de usuarios del sistema</p>
+    </div>
+    @if (activeTab === 'users') {
+      <button class="primary-button users-new-button" type="button" (click)="openCreate()">
+        <app-icon name="plus" />
+        <span>Nuevo usuario</span>
+      </button>
+    }
+  </div>
+
+  <div class="users-tabs" role="tablist" aria-label="Secciones de usuarios">
+    <button
+      class="users-tab"
+      [class.active]="activeTab === 'users'"
+      id="users-tab"
+      role="tab"
+      type="button"
+      [attr.aria-selected]="activeTab === 'users'"
+      aria-controls="users-panel"
+      (click)="selectTab('users')"
+    >
+      <app-icon name="users" />
+      Usuarios
+    </button>
+    <button
+      class="users-tab"
+      [class.active]="activeTab === 'permissions'"
+      id="permissions-tab"
+      role="tab"
+      type="button"
+      [attr.aria-selected]="activeTab === 'permissions'"
+      aria-controls="permissions-panel"
+      (click)="selectTab('permissions')"
+    >
+      <app-icon name="shield" />
+      Roles y permisos
+    </button>
+  </div>
+
+  @if (activeTab === 'users') {
+    <div id="users-panel" role="tabpanel" aria-labelledby="users-tab">
+      <section class="table-card users-list-card" aria-label="Lista de usuarios">
+        <div class="users-toolbar">
+          <label class="users-search" for="search-user">
+            <app-icon name="search" />
+            <input
+              id="search-user"
+              name="searchUser"
+              type="search"
+              placeholder="Buscar usuario..."
+              [(ngModel)]="searchTerm"
+            />
+          </label>
+          <span class="users-count">{{ userCountLabel }}</span>
+        </div>
+
+        @if (formError) {
+          <p class="users-feedback error" role="alert">{{ formError }}</p>
+        }
+        @if (actionError) {
+          <p class="users-feedback error" role="alert">{{ actionError }}</p>
+        }
+
+        <div class="orders-table-wrap">
+          <table class="orders-table users-table">
+            <thead>
+              <tr>
+                <th scope="col">NOMBRE</th>
+                <th scope="col">USUARIO</th>
+                <th scope="col">ROL</th>
+                <th scope="col">ESTADO</th>
+                <th scope="col">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of filteredUsers(); track user.id) {
+                <tr>
+                  <td>
+                    <span class="user-name-cell">
+                      <span class="user-row-avatar">{{ user.firstName.charAt(0) }}{{ user.lastName.charAt(0) }}</span>
+                      <span>{{ fullName(user) }}</span>
+                    </span>
+                  </td>
+                  <td>{{ user.username }}</td>
+                  <td>{{ displayRole(user.role) }}</td>
+                  <td>
+                    <span class="user-status" [class]="statusClass(user.active)">
+                      <span class="user-status-dot"></span>
+                      {{ user.active ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="user-actions">
+                      <button
+                        class="table-action"
+                        type="button"
+                        aria-label="Ver usuario"
+                        (click)="openView(user)"
+                      >
+                        <app-icon name="eye" />
+                        <span>Ver</span>
+                      </button>
+                      <button
+                        class="table-action"
+                        type="button"
+                        aria-label="Editar usuario"
+                        (click)="openEdit(user)"
+                      >
+                        <app-icon name="edit" />
+                        <span>Editar</span>
+                      </button>
+                      <button
+                        class="table-action"
+                        [class.user-action-danger]="user.active"
+                        [class.user-action-success]="!user.active"
+                        type="button"
+                        [attr.aria-label]="user.active ? 'Desactivar usuario' : 'Activar usuario'"
+                        (click)="toggleActive(user)"
+                      >
+                        <app-icon [name]="user.active ? 'trash' : 'check'" />
+                        <span>{{ user.active ? 'Desactivar' : 'Activar' }}</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="users-empty">
+                    No hay usuarios que coincidan con la búsqueda.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  } @else {
+    <section id="permissions-panel" role="tabpanel" aria-labelledby="permissions-tab">
+      <div class="permissions-card">
+        <div class="permissions-intro">
+          <span class="placeholder-icon"><app-icon name="shield" /></span>
+          <div>
+            <h2>Roles y permisos</h2>
+            <p>Consulta y ajusta los permisos disponibles para cada perfil del sistema.</p>
+          </div>
+        </div>
+
+        <div class="role-selector" aria-label="Seleccionar rol">
+          @for (role of roles; track role) {
+            <button
+              class="role-chip"
+              [class.active]="selectedRole === role"
+              type="button"
+              (click)="selectedRole = role; permissionError = ''"
+            >
+              {{ displayRole(role) }}
+            </button>
+          }
+        </div>
+
+        <div class="permission-section-heading">
+          <div>
+            <h3>Permisos del rol {{ displayRole(selectedRole) }}</h3>
+            <p>
+              @if (isAdministratorRole) {
+                El administrador tiene acceso completo. Estos permisos están siempre habilitados.
+              } @else {
+                Los cambios se guardan y se aplican a los usuarios de este rol.
+              }
+            </p>
+          </div>
+          <span class="permission-total">{{ rolePermissions().length }} de {{ permissionCatalog.length }}</span>
+        </div>
+
+        @if (permissionError) {
+          <p class="users-feedback error" role="alert">{{ permissionError }}</p>
+        }
+
+        <div class="permissions-grid">
+          @for (permission of permissionCatalog; track permission.id) {
+            <label class="permission-item" [class.permission-locked]="isPermissionLocked(permission.id)">
+              <input
+                type="checkbox"
+                [checked]="hasPermission(permission.id)"
+                [disabled]="isPermissionLocked(permission.id) || busy()"
+                (change)="onPermissionChange(permission.id, $event)"
+              />
+              <span class="permission-checkmark"><app-icon name="check" /></span>
+              <span>{{ permission.label }}</span>
+            </label>
+          }
+        </div>
+      </div>
+    </section>
+  }
+</section>
+
+@if (isModalOpen) {
+  <div class="modal-backdrop" role="presentation" tabindex="-1" (click)="closeModal()" (keydown.escape)="closeModal()">
+    <section
+      class="user-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="user-modal-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="user-modal-header">
+        <div>
+          <span class="modal-eyebrow">{{ modalMode === 'view' ? 'INFORMACIÓN' : 'GESTIÓN DE ACCESOS' }}</span>
+          <h2 id="user-modal-title">{{ modalTitle }}</h2>
+        </div>
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="Cerrar"
+          (click)="closeModal()"
+        >
+          <app-icon name="close" />
+        </button>
+      </header>
+
+      <form class="user-modal-form" #userForm="ngForm" (ngSubmit)="submitUser(userForm)" novalidate>
+        <div class="modal-fields-grid">
+          <div class="form-field">
+            <label for="user-first-name">Nombres</label>
+            <input
+              id="user-first-name"
+              name="firstName"
+              type="text"
+              placeholder="Ej. Ana María"
+              [(ngModel)]="draft.firstName"
+              [disabled]="modalMode === 'view'"
+              required
+              #firstNameControl="ngModel"
+            />
+            @if (submitted && (firstNameControl.invalid || !draft.firstName.trim())) {
+              <small class="field-error">Ingresa los nombres del usuario.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="user-last-name">Apellidos</label>
+            <input
+              id="user-last-name"
+              name="lastName"
+              type="text"
+              placeholder="Ej. Torres"
+              [(ngModel)]="draft.lastName"
+              [disabled]="modalMode === 'view'"
+              required
+              #lastNameControl="ngModel"
+            />
+            @if (submitted && (lastNameControl.invalid || !draft.lastName.trim())) {
+              <small class="field-error">Ingresa los apellidos del usuario.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="user-username">Usuario</label>
+            <input
+              id="user-username"
+              name="username"
+              type="text"
+              placeholder="Ej. atorres"
+              autocomplete="off"
+              [(ngModel)]="draft.username"
+              [disabled]="modalMode === 'view'"
+              required
+              #usernameControl="ngModel"
+            />
+            @if (submitted && usernameControl.invalid) {
+              <small class="field-error">El nombre de usuario es obligatorio.</small>
+            } @else if (duplicateUsername) {
+              <small class="field-error">Ese nombre de usuario ya está registrado.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="user-role">Rol</label>
+            <select
+              id="user-role"
+              name="role"
+              [(ngModel)]="draft.role"
+              [disabled]="modalMode === 'view'"
+              required
+            >
+              @for (role of roles; track role) {
+                <option [ngValue]="role">{{ displayRole(role) }}</option>
+              }
+            </select>
+          </div>
+
+          @if (modalMode !== 'view') {
+            <div class="form-field">
+              <label for="user-password">
+                Contraseña
+                @if (modalMode === 'edit') {
+                  <span class="optional-label">(deja en blanco para conservarla)</span>
+                }
+              </label>
+              <div class="password-input-wrap">
+                <input
+                  id="user-password"
+                  name="password"
+                  [type]="passwordVisible ? 'text' : 'password'"
+                  placeholder="Escribe una contraseña"
+                  autocomplete="new-password"
+                  [(ngModel)]="draft.password"
+                  [required]="modalMode === 'create'"
+                  minlength="10"
+                  maxlength="72"
+                  #newPasswordControl="ngModel"
+                />
+                <button
+                  class="password-toggle"
+                  type="button"
+                  [attr.aria-label]="passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  (click)="passwordVisible = !passwordVisible"
+                >
+                  <app-icon [name]="passwordVisible ? 'eye-off' : 'eye'" />
+                </button>
+              </div>
+              @if (submitted && newPasswordControl.invalid) {
+                <small class="field-error">La contraseña es obligatoria.</small>
+              }
+            </div>
+
+            <div class="form-field">
+              <label for="user-password-confirm">Confirmar contraseña</label>
+              <div class="password-input-wrap">
+                <input
+                  id="user-password-confirm"
+                  name="confirmPassword"
+                  [type]="confirmPasswordVisible ? 'text' : 'password'"
+                  placeholder="Repite la contraseña"
+                  autocomplete="new-password"
+                  [(ngModel)]="confirmPassword"
+                  [required]="modalMode === 'create' || draft.password.length > 0 || confirmPassword.length > 0"
+                  #confirmPasswordControl="ngModel"
+                />
+                <button
+                  class="password-toggle"
+                  type="button"
+                  [attr.aria-label]="confirmPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  (click)="confirmPasswordVisible = !confirmPasswordVisible"
+                >
+                  <app-icon [name]="confirmPasswordVisible ? 'eye-off' : 'eye'" />
+                </button>
+              </div>
+              @if (
+                submitted &&
+                ((confirmPasswordControl.invalid &&
+                  (modalMode === 'create' || draft.password.length > 0 || confirmPassword.length > 0)) ||
+                  ((draft.password.length > 0 || confirmPassword.length > 0) && draft.password !== confirmPassword))
+              ) {
+                <small class="field-error">Las contraseñas deben coincidir.</small>
+              }
+            </div>
+
+            <div class="form-field">
+              <label for="user-status">Estado</label>
+              <select id="user-status" name="active" [(ngModel)]="draft.active">
+                <option [ngValue]="true">Activo</option>
+                <option [ngValue]="false">Inactivo</option>
+              </select>
+            </div>
+          } @else {
+            <div class="form-field">
+              <label for="user-status-view">Estado</label>
+              <input
+                id="user-status-view"
+                name="activeView"
+                type="text"
+                [ngModel]="draft.active ? 'Activo' : 'Inactivo'"
+                disabled
+              />
+            </div>
+          }
+        </div>
+
+        @if (formError) {
+          <p class="users-feedback error" role="alert">{{ formError }}</p>
+        }
+
+        <footer class="user-modal-actions">
+          <button class="outline-button user-cancel-button" type="button" (click)="closeModal()">
+            {{ modalMode === 'view' ? 'Cerrar' : 'Cancelar' }}
+          </button>
+          @if (modalMode !== 'view') {
+            <button class="primary-button user-save-button" type="submit" [disabled]="busy() > 0">
+              <app-icon name="save" />
+              <span>{{ modalMode === 'create' ? 'Crear usuario' : 'Guardar cambios' }}</span>
+            </button>
+          }
+        </footer>
+      </form>
+    </section>
+  </div>
+}

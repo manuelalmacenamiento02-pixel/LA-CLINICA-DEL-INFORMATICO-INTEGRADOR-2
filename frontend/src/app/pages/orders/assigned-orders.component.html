@@ -1,0 +1,72 @@
+<section aria-labelledby="assigned-orders-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="assigned-orders-title">Mis Órdenes Asignadas</h1>
+      <p>Consulta y gestión de los servicios técnicos asignados</p>
+    </div>
+  </div>
+
+  @if (error) { <p class="module-feedback error" role="alert">{{ error }}</p> }
+
+  <section class="table-card module-list-card" aria-label="Órdenes asignadas a mi usuario">
+    <div class="module-toolbar orders-filters">
+      <label class="module-search" for="search-assigned-orders">
+        <app-icon name="search" />
+        <input id="search-assigned-orders" name="searchAssignedOrders" type="search" placeholder="Buscar por código" [(ngModel)]="searchTerm" />
+      </label>
+      <label class="orders-status-filter" for="filter-assigned-status">
+        <span>Estado</span>
+        <select id="filter-assigned-status" name="assignedStatusFilter" [(ngModel)]="statusFilter">
+          <option value="">Todos</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="EN_ATENCION">En atención</option>
+          <option value="FINALIZADA">Finalizada</option>
+        </select>
+      </label>
+      <span class="module-count">{{ filteredOrders().length }} órdenes</span>
+    </div>
+
+    <div class="orders-table-wrap">
+      <table class="orders-table module-table service-orders-table">
+        <thead>
+          <tr>
+            <th scope="col">CÓDIGO</th>
+            <th scope="col">CLIENTE</th>
+            <th scope="col">EQUIPO</th>
+            <th scope="col">FECHA</th>
+            <th scope="col">PRIORIDAD</th>
+            <th scope="col">ESTADO</th>
+            <th scope="col">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of filteredOrders(); track order.id) {
+            <tr>
+              <td class="order-id">{{ order.code }}</td>
+              <td class="order-client">{{ order.clientName }}</td>
+              <td>{{ equipmentName(order) }}</td>
+              <td>{{ order.receivedDate }}</td>
+              <td>{{ priorityLabel(order.priority) }}</td>
+              <td><span class="status-badge" [class]="'status-badge status-' + order.status.toLowerCase()">{{ statusLabel(order.status) }}</span></td>
+              <td>
+                <div class="module-actions">
+                  <a class="table-action action-view" [routerLink]="['/mis-ordenes', order.id]"><app-icon name="eye" /> Ver detalle</a>
+                  <button
+                    class="table-action action-edit"
+                    type="button"
+                    [disabled]="order.status === 'FINALIZADA' || order.status === 'CERRADA' || order.status === 'CANCELADA' || busy()"
+                    (click)="attend(order)"
+                  >
+                    <app-icon name="wrench" /> Atender
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="module-empty">No tienes órdenes asignadas.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>

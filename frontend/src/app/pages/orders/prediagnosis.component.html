@@ -1,0 +1,243 @@
+<section aria-labelledby="prediagnosis-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="prediagnosis-title">Prediagnóstico con IA</h1>
+      <p>Análisis inicial de problemas técnicos asistido por inteligencia artificial</p>
+    </div>
+  </div>
+
+  @if (error()) { <p class="module-feedback error" role="alert">{{ error() }}</p> }
+  @if (feedback()) { <p class="module-feedback success" role="status">{{ feedback() }}</p> }
+
+  <div class="prediagnosis-layout">
+    <section class="table-card prediagnosis-input-card" aria-labelledby="prediagnosis-input-heading">
+      <header class="prediagnosis-section-heading">
+        <span class="prediagnosis-icon"><app-icon name="laptop" /></span>
+        <div>
+          <h2 id="prediagnosis-input-heading">Información del equipo</h2>
+          <p>Datos de la orden cargados desde PostgreSQL.</p>
+        </div>
+      </header>
+      <form class="prediagnosis-form" (ngSubmit)="generate()">
+        <div class="form-field">
+          <label for="prediagnosis-order">Orden de servicio</label>
+          <select
+            id="prediagnosis-order"
+            name="prediagnosisOrder"
+            [ngModel]="selectedOrderId()"
+            (ngModelChange)="selectOrder($event)"
+            [disabled]="loading() || !orders().length"
+            required
+          >
+            <option value="" disabled>Selecciona una orden</option>
+            @for (order of orders(); track order.id) {
+              <option [value]="order.id">{{ order.code }} · {{ order.clientName }} · {{ orderStatusLabel(order.status) }}</option>
+            }
+          </select>
+          @if (!orders().length && !loading()) { <small class="field-error">No hay órdenes disponibles para analizar.</small> }
+        </div>
+
+        @if (selectedOrder(); as order) {
+          <div class="prediagnosis-context-list">
+            <div><span>Cliente</span><strong>{{ order.clientName }}</strong></div>
+            <div><span>Tipo de equipo</span><strong>{{ order.equipmentType }}</strong></div>
+            <div><span>Marca</span><strong>{{ order.brand }}</strong></div>
+            <div><span>Modelo</span><strong>{{ order.model }}</strong></div>
+            <div class="prediagnosis-context-wide">
+              <span>Características técnicas</span>
+              <strong>{{ order.equipmentCharacteristics || 'Sin características registradas' }}</strong>
+            </div>
+            <div class="prediagnosis-context-wide">
+              <span>Problema reportado</span>
+              <strong>{{ order.reportedProblem }}</strong>
+            </div>
+            <div class="prediagnosis-context-wide">
+              <span>Observaciones iniciales</span>
+              <strong>{{ order.initialObservations || 'Sin observaciones iniciales' }}</strong>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="additional-symptoms">Síntomas adicionales</label>
+            <textarea id="additional-symptoms" name="additionalSymptoms" rows="3" maxlength="5000" [(ngModel)]="additionalSymptoms"></textarea>
+          </div>
+          <div class="form-field">
+            <label for="prediagnosis-observations">Observaciones para el análisis</label>
+            <textarea id="prediagnosis-observations" name="prediagnosisObservations" rows="3" maxlength="5000" [(ngModel)]="observations"></textarea>
+          </div>
+
+          @if (order.status === 'FINALIZADA' || order.status === 'CERRADA' || order.status === 'CANCELADA') {
+            <p class="ai-disclaimer">Las órdenes finalizadas o cerradas son de consulta y no admiten un nuevo análisis.</p>
+          }
+          <button
+            class="primary-button prediagnosis-generate-button"
+            type="submit"
+            [disabled]="generating() || !selectedOrderId() || order.status === 'FINALIZADA' || order.status === 'CERRADA' || order.status === 'CANCELADA'"
+          >
+            @if (generating()) {
+              <span class="ai-loading-spinner" aria-hidden="true"></span>
+              Analizando con Gemini…
+            } @else {
+              <app-icon name="sparkles" /> Generar prediagnóstico
+            }
+          </button>
+        }
+      </form>
+    </section>
+
+    <section class="table-card prediagnosis-result-card" aria-labelledby="prediagnosis-result-heading">
+      <header class="prediagnosis-section-heading">
+        <span class="prediagnosis-icon ai-result-icon"><app-icon name="sparkles" /></span>
+        <div>
+          <h2 id="prediagnosis-result-heading">Resultado de IA</h2>
+          <p>Recomendación de apoyo, no reemplaza el criterio profesional.</p>
+        </div>
+      </header>
+
+      @if (generating()) {
+        <div class="ai-loading-panel" role="status" aria-live="polite">
+          <span class="ai-loading-spinner"></span>
+          <strong>Gemini está analizando la información técnica…</strong>
+          <p>La respuesta se validará antes de guardarse.</p>
+        </div>
+      } @else if (activePrediagnosis(); as prediction) {
+        @if (prediction.status === 'ERROR' || !prediction.result) {
+          <div class="ai-error-panel" role="alert">
+            <strong>No se obtuvo un resultado válido.</strong>
+            <p>{{ prediction.errorMessage || 'No se generó un prediagnóstico.' }}</p>
+            @if (selectedOrder()) {
+              <button class="outline-button" type="button" (click)="retry()">Reintentar</button>
+            }
+          </div>
+        } @else {
+          <div class="ai-validation-heading">
+            <span class="ai-validation-badge" [class]="statusClass(prediction.validationStatus)">
+              {{ statusLabel(prediction.validationStatus) }}
+            </span>
+            <span class="ai-model-label">Gemini · {{ prediction.model }}</span>
+          </div>
+
+          <div class="ai-result-sections">
+            <section class="ai-result-classification">
+              <span>Clasificación inicial</span>
+              <strong>{{ prediction.result.classification }}</strong>
+              <span class="priority-suggestion" [class]="'priority-suggestion priority-' + prediction.result.suggestedPriority.toLowerCase()">
+                Prioridad sugerida: {{ priorityLabel(prediction.result.suggestedPriority) }}
+              </span>
+            </section>
+            <section class="ai-result-block">
+              <h3>Posibles causas</h3>
+              <ul>@for (item of prediction.result.possibleCauses; track $index) { <li>{{ item }}</li> }</ul>
+            </section>
+            <section class="ai-result-block">
+              <h3>Pruebas técnicas recomendadas</h3>
+              <ul>@for (item of prediction.result.recommendedTests; track $index) { <li>{{ item }}</li> }</ul>
+            </section>
+            <section class="ai-result-block">
+              <h3>Recomendaciones iniciales</h3>
+              <ul>@for (item of prediction.result.recommendations; track $index) { <li>{{ item }}</li> }</ul>
+            </section>
+            <section class="ai-result-block ai-warning-block">
+              <h3>Advertencias y limitaciones</h3>
+              <ul>@for (item of prediction.result.warnings; track $index) { <li>{{ item }}</li> }</ul>
+            </section>
+          </div>
+
+          @if (prediction.validationStatus === 'MODIFICADO' && prediction.modifiedResult) {
+            <section class="technician-validation-result">
+              <h3>Versión revisada por el técnico</h3>
+              <p>Validada por {{ prediction.validatedBy || 'técnico responsable' }} · {{ prediction.validatedAt }}</p>
+              <strong>{{ prediction.modifiedResult.classification }}</strong>
+              <p>Prioridad: {{ priorityLabel(prediction.modifiedResult.suggestedPriority) }}</p>
+              @if (prediction.validationObservations) { <p>Observaciones: {{ prediction.validationObservations }}</p> }
+            </section>
+          } @else if (prediction.validationStatus === 'ACEPTADO' || prediction.validationStatus === 'DESCARTADO') {
+            <section class="technician-validation-result">
+              <p>Revisado por {{ prediction.validatedBy || 'técnico responsable' }} · {{ prediction.validatedAt }}</p>
+              @if (prediction.validationObservations) { <p>{{ prediction.validationObservations }}</p> }
+            </section>
+          }
+
+          @if (!prediction.validationStatus) {
+            <section class="prediagnosis-review">
+              <h3>Revisión del técnico</h3>
+              <p>El diagnóstico definitivo siempre debe ser registrado o confirmado por el técnico responsable.</p>
+              @if (editing) {
+                <div class="prediagnosis-edit-grid">
+                  <div class="form-field">
+                    <label for="modified-classification">Clasificación revisada</label>
+                    <input id="modified-classification" name="modifiedClassification" [(ngModel)]="modifiedResult.classification" [ngModelOptions]="{ standalone: true }" maxlength="300" />
+                  </div>
+                  <div class="form-field">
+                    <label for="modified-priority">Prioridad sugerida</label>
+                    <select id="modified-priority" name="modifiedPriority" [(ngModel)]="modifiedResult.suggestedPriority" [ngModelOptions]="{ standalone: true }">
+                      <option value="BAJA">Baja</option><option value="MEDIA">Media</option><option value="ALTA">Alta</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label for="modified-causes">Posibles causas (una por línea)</label>
+                    <textarea id="modified-causes" name="modifiedCauses" rows="3" [ngModel]="listToText(modifiedResult.possibleCauses)" (ngModelChange)="modifiedResult.possibleCauses = textToList($event)" [ngModelOptions]="{ standalone: true }"></textarea>
+                  </div>
+                  <div class="form-field">
+                    <label for="modified-tests">Pruebas recomendadas (una por línea)</label>
+                    <textarea id="modified-tests" name="modifiedTests" rows="3" [ngModel]="listToText(modifiedResult.recommendedTests)" (ngModelChange)="modifiedResult.recommendedTests = textToList($event)" [ngModelOptions]="{ standalone: true }"></textarea>
+                  </div>
+                  <div class="form-field">
+                    <label for="modified-recommendations">Recomendaciones (una por línea)</label>
+                    <textarea id="modified-recommendations" name="modifiedRecommendations" rows="3" [ngModel]="listToText(modifiedResult.recommendations)" (ngModelChange)="modifiedResult.recommendations = textToList($event)" [ngModelOptions]="{ standalone: true }"></textarea>
+                  </div>
+                  <div class="form-field">
+                    <label for="modified-warnings">Advertencias (una por línea)</label>
+                    <textarea id="modified-warnings" name="modifiedWarnings" rows="3" [ngModel]="listToText(modifiedResult.warnings)" (ngModelChange)="modifiedResult.warnings = textToList($event)" [ngModelOptions]="{ standalone: true }"></textarea>
+                  </div>
+                </div>
+                <div class="prediagnosis-review-actions">
+                  <button class="outline-button" type="button" (click)="editing = false">Cancelar edición</button>
+                  <button class="primary-button" type="button" [disabled]="savingValidation()" (click)="saveModification()">Guardar versión modificada</button>
+                </div>
+              } @else {
+                <div class="prediagnosis-review-actions">
+                  <button class="ai-accept-button" type="button" [disabled]="savingValidation()" (click)="accept()"><app-icon name="check" /> Aceptar</button>
+                  <button class="outline-button" type="button" [disabled]="savingValidation()" (click)="beginModification()"><app-icon name="edit" /> Modificar</button>
+                  <button class="ai-discard-button" type="button" [disabled]="savingValidation()" (click)="discard()"><app-icon name="close" /> Descartar</button>
+                </div>
+                <div class="form-field">
+                  <label for="discard-reason">Observación del técnico <span class="optional-label">(obligatoria al descartar)</span></label>
+                  <textarea id="discard-reason" name="discardReason" rows="2" maxlength="2000" [(ngModel)]="discardReason" [ngModelOptions]="{ standalone: true }"></textarea>
+                </div>
+              }
+            </section>
+          }
+
+          <p class="ai-disclaimer">Este análisis es orientativo. Verifica las pruebas y conclusiones con tu criterio profesional antes de intervenir el equipo.</p>
+        }
+      } @else {
+        <div class="ai-empty-panel">
+          <app-icon name="sparkles" />
+          <strong>El prediagnóstico aparecerá aquí</strong>
+          <p>Selecciona una orden y solicita un análisis para revisar la recomendación.</p>
+        </div>
+      }
+    </section>
+  </div>
+
+  @if (history().length > 0) {
+    <section class="table-card prediagnosis-history-card">
+      <header class="table-card-header"><h2>Prediagnósticos anteriores de esta orden</h2></header>
+      <div class="prediagnosis-history-list">
+        @for (item of history(); track item.id) {
+          <button
+            class="prediagnosis-history-item"
+            type="button"
+            [class.selected]="activePrediagnosis()?.id === item.id"
+            (click)="showPrediagnosis(item)"
+          >
+            <span>{{ item.requestedAt | date:'short' }}</span>
+            <span class="ai-validation-badge" [class]="statusClass(item.validationStatus)">{{ statusLabel(item.validationStatus) }}</span>
+            <span>{{ item.result?.classification || item.errorMessage || 'Sin resultado' }}</span>
+          </button>
+        }
+      </div>
+    </section>
+  }
+</section>

@@ -1,0 +1,108 @@
+<section aria-labelledby="technical-attention-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="technical-attention-title">Atención Técnica</h1>
+      <p>Registra el diagnóstico y los avances del servicio técnico.</p>
+    </div>
+    <a class="outline-button order-back-link" [routerLink]="returnPath()">
+      <app-icon name="arrow-up" /> Volver a órdenes
+    </a>
+  </div>
+
+  @if (error()) { <p class="module-feedback error" role="alert">{{ error() }}</p> }
+  @if (feedback()) { <p class="module-feedback success" role="status">{{ feedback() }}</p> }
+  @if (loading() && !order()) {
+    <section class="table-card order-loading" aria-live="polite">Cargando orden…</section>
+  } @else if (order(); as item) {
+    <section class="table-card attention-order-summary" aria-label="Información de la orden">
+      <div>
+        <span class="modal-eyebrow">ORDEN DE SERVICIO</span>
+        <h2>{{ item.code }}</h2>
+      </div>
+      <dl class="order-detail-list">
+        <div><dt>Cliente</dt><dd>{{ item.clientName }}</dd></div>
+        <div><dt>Equipo</dt><dd>{{ equipmentName(item) }}</dd></div>
+        <div><dt>Marca y modelo</dt><dd>{{ item.brand }} {{ item.model }}</dd></div>
+        <div><dt>Prioridad</dt><dd>{{ priorityLabel(item.priority) }}</dd></div>
+        <div><dt>Estado</dt><dd>{{ statusLabel(item.status) }}</dd></div>
+        <div><dt>Técnico responsable</dt><dd>{{ item.technicianName || 'Sin asignar' }}</dd></div>
+        <div class="attention-summary-wide"><dt>Problema reportado</dt><dd>{{ item.reportedProblem }}</dd></div>
+      </dl>
+    </section>
+
+    @if (!started() && !finalized()) {
+      <section class="table-card attention-start-panel">
+        <p>La orden está {{ statusLabel(item.status).toLowerCase() }}. Inicia la atención para habilitar el registro técnico.</p>
+        <button class="primary-button order-attend-button" type="button" [disabled]="busy()" (click)="startAttention()">
+          <app-icon name="wrench" /> Iniciar atención
+        </button>
+      </section>
+    }
+
+    <section class="table-card attention-form-card">
+      <header class="attention-section-heading">
+        <div>
+          <h2>Registro de atención</h2>
+          <p>Los avances se guardan sin cerrar la orden.</p>
+        </div>
+        @if (finalized()) { <span class="status-badge status-finalizada">Servicio finalizado</span> }
+        @else if (started()) { <span class="status-badge status-en_atencion">Atención en curso</span> }
+      </header>
+
+      <form #attentionForm="ngForm" (ngSubmit)="save(attentionForm)" novalidate>
+        <div class="attention-form-grid">
+          <div class="form-field">
+            <label for="attention-date">Fecha de atención</label>
+            <input id="attention-date" name="attendedAt" type="date" required [(ngModel)]="draft.attendedAt" [disabled]="!started() || finalized()" />
+          </div>
+          <div class="form-field attention-form-wide">
+            <label for="attention-diagnosis">Diagnóstico técnico</label>
+            <textarea id="attention-diagnosis" name="diagnosis" rows="3" required maxlength="10000" [(ngModel)]="draft.diagnosis" [disabled]="!started() || finalized()"></textarea>
+            @if (submitted && !draft.diagnosis.trim()) { <small class="field-error">El diagnóstico técnico es obligatorio.</small> }
+          </div>
+          <div class="form-field attention-form-wide">
+            <label for="attention-actions">Actividades realizadas</label>
+            <textarea id="attention-actions" name="actionsPerformed" rows="3" required maxlength="10000" [(ngModel)]="draft.actionsPerformed" [disabled]="!started() || finalized()"></textarea>
+            @if (submitted && !draft.actionsPerformed.trim()) { <small class="field-error">Registra las actividades realizadas.</small> }
+          </div>
+          <div class="form-field">
+            <label for="attention-tests">Pruebas efectuadas</label>
+            <textarea id="attention-tests" name="performedTests" rows="3" maxlength="10000" [(ngModel)]="draft.performedTests" [disabled]="!started() || finalized()"></textarea>
+          </div>
+          <div class="form-field">
+            <label for="attention-parts">Repuestos utilizados <span class="optional-label">(opcional)</span></label>
+            <textarea id="attention-parts" name="partsUsed" rows="3" maxlength="10000" [(ngModel)]="draft.partsUsed" [disabled]="!started() || finalized()"></textarea>
+          </div>
+          <div class="form-field attention-form-wide">
+            <label for="attention-observations">Observaciones</label>
+            <textarea id="attention-observations" name="attentionObservations" rows="3" maxlength="10000" [(ngModel)]="draft.observations" [disabled]="!started() || finalized()"></textarea>
+          </div>
+          <div class="form-field attention-form-wide">
+            <label for="attention-result">Resultado o solución</label>
+            <textarea id="attention-result" name="resultSummary" rows="3" maxlength="10000" [(ngModel)]="draft.resultSummary" [disabled]="!started() || finalized()"></textarea>
+            @if (submitted && !draft.resultSummary.trim()) { <small class="field-error">El resultado es obligatorio para finalizar.</small> }
+          </div>
+        </div>
+
+        <footer class="attention-actions">
+          <button class="outline-button" type="button" (click)="cancel()">Cancelar</button>
+          <a
+            class="outline-button attention-ai-link"
+            [class.disabled]="finalized()"
+            [routerLink]="finalized() ? null : ['/prediagnostico']"
+            [queryParams]="{ orderId: item.id }"
+            [attr.aria-disabled]="finalized()"
+          >
+            <app-icon name="sparkles" /> Generar prediagnóstico con IA
+          </a>
+          <button class="outline-button" type="submit" [disabled]="busy() || !started() || finalized()">
+            <app-icon name="save" /> Guardar atención
+          </button>
+          <button class="primary-button" type="button" [disabled]="busy() || !started() || finalized()" (click)="finalize()">
+            <app-icon name="check" /> Finalizar orden
+          </button>
+        </footer>
+      </form>
+    </section>
+  }
+</section>

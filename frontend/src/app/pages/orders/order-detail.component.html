@@ -1,0 +1,91 @@
+<section aria-labelledby="order-detail-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="order-detail-title">Detalle de la orden</h1>
+      <p>Información general, servicio e historial de estados.</p>
+    </div>
+    <a class="outline-button order-back-link" [routerLink]="backPath"><app-icon name="arrow-up" /> Volver a órdenes</a>
+  </div>
+
+  @if (error()) { <p class="module-feedback error" role="alert">{{ error() }}</p> }
+  @if (feedback()) { <p class="module-feedback success" role="status">{{ feedback() }}</p> }
+  @if (loading() && !order()) {
+    <section class="table-card order-loading" aria-live="polite">Cargando detalle…</section>
+  } @else if (order(); as item) {
+    <div class="order-detail-heading table-card">
+      <div>
+        <span class="modal-eyebrow">ORDEN DE SERVICIO</span>
+        <h2>{{ item.code }}</h2>
+        <p>{{ item.receivedDate }} · {{ equipmentName(item) }}</p>
+      </div>
+      @if (canAttend() && item.status !== 'FINALIZADA' && item.status !== 'CERRADA' && item.status !== 'CANCELADA') {
+        <button class="primary-button order-attend-button" type="button" [disabled]="loading()" (click)="startAttention()">
+          <app-icon name="wrench" /> Atención técnica
+        </button>
+      }
+      <span class="status-badge" [class]="'status-badge status-' + item.status.toLowerCase()">{{ statusLabel(item.status) }}</span>
+    </div>
+
+    <div class="order-detail-grid">
+      <section class="table-card order-info-card">
+        <h2>Información general</h2>
+        <dl class="order-detail-list">
+          <div><dt>Código</dt><dd>{{ item.code }}</dd></div>
+          <div><dt>Fecha de ingreso</dt><dd>{{ item.receivedDate }}</dd></div>
+          <div><dt>Estado</dt><dd>{{ statusLabel(item.status) }}</dd></div>
+          <div><dt>Prioridad</dt><dd>{{ priorityLabel(item.priority) }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="table-card order-info-card">
+        <h2>Cliente</h2>
+        <dl class="order-detail-list">
+          <div><dt>Nombre</dt><dd>{{ item.clientName }}</dd></div>
+          <div><dt>Documento</dt><dd>{{ item.clientDocument }}</dd></div>
+          <div><dt>Teléfono</dt><dd>{{ item.clientPhone }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="table-card order-info-card">
+        <h2>Equipo</h2>
+        <dl class="order-detail-list">
+          <div><dt>Tipo</dt><dd>{{ item.equipmentType }}</dd></div>
+          <div><dt>Marca</dt><dd>{{ item.brand }}</dd></div>
+          <div><dt>Modelo</dt><dd>{{ item.model }}</dd></div>
+          <div><dt>Número de serie</dt><dd>{{ item.serialNumber || 'No registrado' }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="table-card order-info-card order-service-card">
+        <h2>Servicio</h2>
+        <dl class="order-detail-list">
+          <div><dt>Problema reportado</dt><dd class="order-long-text">{{ item.reportedProblem }}</dd></div>
+          <div><dt>Técnico asignado</dt><dd>{{ item.technicianName || 'Sin asignar' }}</dd></div>
+          <div><dt>Observaciones iniciales</dt><dd class="order-long-text">{{ item.initialObservations || 'Sin observaciones' }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="table-card order-info-card order-history-card">
+        <div class="table-card-header">
+          <h2>Historial de estados</h2>
+        </div>
+        @if (item.history?.length) {
+          <ol class="order-history-list">
+            @for (entry of item.history; track entry.changedAt + entry.toStatus) {
+              <li>
+                <span class="order-history-dot" [class]="'order-history-dot status-' + entry.toStatus.toLowerCase()"></span>
+                <div>
+                  <strong>{{ entry.fromStatus ? statusLabel(entry.fromStatus) + ' → ' : '' }}{{ statusLabel(entry.toStatus) }}</strong>
+                  <p>{{ entry.changedBy }} · {{ entry.changedAt | date:'short' }}</p>
+                  @if (entry.reason) { <p>{{ entry.reason }}</p> }
+                </div>
+              </li>
+            }
+          </ol>
+        } @else {
+          <p class="order-history-empty">No hay cambios de estado registrados.</p>
+        }
+      </section>
+    </div>
+  }
+</section>

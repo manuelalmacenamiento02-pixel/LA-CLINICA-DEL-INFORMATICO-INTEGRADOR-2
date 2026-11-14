@@ -1,0 +1,148 @@
+<section aria-labelledby="dashboard-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="dashboard-title">{{ isTechnician() ? 'Panel de trabajo técnico' : 'Resumen general' }}</h1>
+      <p>
+        {{ isTechnician()
+          ? 'Consulta tus órdenes activas y organiza tu trabajo de un vistazo.'
+          : 'Indicadores actualizados con los registros disponibles para tu cuenta.' }}
+      </p>
+    </div>
+    <span class="date-chip"><app-icon name="calendar" /> {{ today }}</span>
+  </div>
+
+  @if (isTechnician()) {
+    <section class="technician-dashboard" aria-labelledby="attention-heading">
+      <div class="technician-hero">
+        <div class="technician-hero-copy">
+          <span class="technician-hero-kicker">TU JORNADA</span>
+          <h2>Todo tu trabajo, en un solo lugar</h2>
+          <p>Revisa tus órdenes y atiende primero los equipos con mayor prioridad.</p>
+        </div>
+        <div class="technician-hero-total">
+          <app-icon name="laptop" />
+          <div>
+            <span>Órdenes activas</span>
+            <strong>{{ technicianOrders().length }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <section aria-labelledby="attention-heading">
+        <div class="dashboard-section-heading">
+            <div>
+              <h2 id="attention-heading">Niveles de atención</h2>
+              <p>Distribución de tus órdenes según la prioridad asignada.</p>
+            </div>
+        </div>
+
+        <div class="priority-stats-grid">
+            @for (stat of priorityStats(); track stat.label) {
+              <article class="priority-stat-card" [class]="stat.color">
+                <span class="priority-light" aria-hidden="true"></span>
+                <div>
+                  <span class="priority-stat-label">{{ stat.label }}</span>
+                  <p class="priority-stat-value">{{ stat.value }}</p>
+                  <span class="priority-stat-detail">{{ stat.detail }}</span>
+                </div>
+              </article>
+            }
+        </div>
+
+        <section class="technician-orders" aria-labelledby="technician-orders-heading">
+            <div class="dashboard-section-heading">
+              <div>
+                <h2 id="technician-orders-heading">Equipos asignados</h2>
+                <p>Detalle de órdenes activas asignadas a ti</p>
+              </div>
+              <span class="technician-order-count">{{ technicianOrders().length }} activas</span>
+            </div>
+
+            @if (technicianOrders().length > 0) {
+              <div class="technician-order-list">
+                @for (order of technicianOrders(); track order.id) {
+                  <article class="technician-order-card" [class]="priorityClass(order.priority)">
+                    <span class="order-priority-indicator" aria-hidden="true"></span>
+                    <div class="technician-order-main">
+                      <div class="technician-order-heading">
+                        <h3>Orden #{{ order.orderNumber }} · {{ order.equipmentType }} {{ order.brand }} {{ order.model }}</h3>
+                        <span class="priority-badge" [class]="priorityClass(order.priority)">
+                          {{ priorityLabel(order.priority) }}
+                        </span>
+                      </div>
+                      <p class="technician-order-problem">{{ order.reportedProblem }}</p>
+                      <div class="technician-order-meta">
+                        <span>Cliente: {{ order.clientName.trim() || 'No indicado' }}</span>
+                        <span class="order-status-chip">{{ statusLabel(order.status) }}</span>
+                        @if (order.serialNumber) {
+                          <span>Serie: {{ order.serialNumber }}</span>
+                        }
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            } @else {
+              <div class="technician-empty-state">
+                <app-icon name="clipboard" />
+                <h3>No tienes equipos asignados</h3>
+                <p>Cuando recibas una orden activa, aparecerá aquí para que puedas darle seguimiento.</p>
+              </div>
+            }
+        </section>
+      </section>
+    </section>
+  } @else {
+    @if (canViewOrderIndicators()) {
+      @if (indicatorError()) { <p class="users-feedback error" role="alert">{{ indicatorError() }}</p> }
+      @if (orderIndicators(); as orders) {
+        <div class="stats-grid order-indicator-stats">
+          <article class="stat-card"><span class="stat-label">Total de órdenes</span><p class="stat-value">{{ orders.total }}</p><span class="stat-caption">Órdenes registradas</span></article>
+          <article class="stat-card"><span class="stat-label">Órdenes pendientes</span><p class="stat-value">{{ orders.pending }}</p><span class="stat-caption">Pendientes o asignadas</span></article>
+          <article class="stat-card"><span class="stat-label">Órdenes en atención</span><p class="stat-value">{{ orders.in_progress }}</p><span class="stat-caption">Atención técnica iniciada</span></article>
+          <article class="stat-card"><span class="stat-label">Órdenes finalizadas</span><p class="stat-value">{{ orders.finalized }}</p><span class="stat-caption">Finalizadas o cerradas</span></article>
+        </div>
+
+        <div class="dashboard-charts">
+          <section class="table-card dashboard-chart" aria-labelledby="orders-status-title">
+            <h2 id="orders-status-title">Órdenes por estado</h2>
+            @for (item of orders.byStatus; track item.status) {
+              <div class="chart-row" [class]="'chart-row ' + item.status">
+                <span>{{ orderStatusLabel(item.status) }}</span>
+                <span class="chart-bar"><span [style.width.%]="orders.total ? item.total / orders.total * 100 : 0"></span></span>
+                <strong>{{ item.total }}</strong>
+              </div>
+            } @empty { <p>Sin datos.</p> }
+          </section>
+          <section class="table-card dashboard-chart" aria-labelledby="orders-month-title">
+            <h2 id="orders-month-title">Órdenes por mes</h2>
+            @for (item of orders.byMonth; track item.month) {
+              <div class="chart-row">
+                <span>{{ monthLabel(item.month) }}</span>
+                <span class="chart-bar"><span [style.width.%]="monthWidth(item.total)"></span></span>
+                <strong>{{ item.total }}</strong>
+              </div>
+            } @empty { <p>Sin datos.</p> }
+          </section>
+        </div>
+      } @else if (!indicatorError()) {
+        <p role="status">Cargando indicadores de órdenes…</p>
+      }
+    } @else {
+      <div class="stats-grid">
+        @for (stat of stats(); track stat.label) {
+          <article class="stat-card">
+            <div class="stat-card-top">
+              <span class="stat-label">{{ stat.label }}</span>
+              <span class="stat-icon" [class]="stat.color">
+                <app-icon [name]="stat.icon" />
+              </span>
+            </div>
+            <p class="stat-value">{{ stat.value }}</p>
+            <span class="stat-caption">{{ stat.caption }}</span>
+          </article>
+        }
+      </div>
+    }
+  }
+</section>

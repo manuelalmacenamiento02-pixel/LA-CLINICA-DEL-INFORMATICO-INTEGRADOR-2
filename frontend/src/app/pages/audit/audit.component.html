@@ -1,0 +1,74 @@
+<section aria-labelledby="audit-title">
+  <div class="page-heading">
+    <div><h1 id="audit-title">Auditoría</h1><p>Consulta de eventos del sistema. Los registros no se pueden editar ni eliminar.</p></div>
+  </div>
+
+  <form class="indicator-filters audit-filters" (ngSubmit)="refresh()">
+    <label>Buscar
+      <input type="search" name="search" [(ngModel)]="search" placeholder="Usuario, acción o detalle" />
+    </label>
+    <label>Usuario
+      <select name="user" [(ngModel)]="user">
+        <option value="">Todos</option>
+        @for (item of store.users(); track item.id) {
+          <option [value]="item.id">{{ item.firstName }} {{ item.lastName }} ({{ item.username }})</option>
+        }
+      </select>
+    </label>
+    <label>Módulo
+      <select name="module" [(ngModel)]="module">
+        <option value="">Todos</option>
+        <option value="users">Usuarios</option>
+        <option value="clients">Clientes</option>
+        <option value="equipment">Equipos</option>
+        <option value="service_orders">Órdenes</option>
+        <option value="technical_attentions">Atención técnica</option>
+        <option value="ai_prediagnoses">Prediagnósticos</option>
+        <option value="ai_validations">Validación IA</option>
+        <option value="backup_runs">Respaldos</option>
+      </select>
+    </label>
+    <label>Desde <input type="date" name="from" [(ngModel)]="from" /></label>
+    <label>Hasta <input type="date" name="to" [(ngModel)]="to" /></label>
+    <label>Resultado
+      <select name="result" [(ngModel)]="result">
+        <option value="">Todos</option><option value="SUCCESS">Exitoso</option><option value="FAILED">Fallido</option>
+      </select>
+    </label>
+    <button class="primary-button" type="submit" [disabled]="loading()">Filtrar</button>
+  </form>
+
+  @if (error()) { <p class="users-feedback error" role="alert">{{ error() }}</p> }
+  @if (loading()) { <p role="status">Cargando eventos…</p> }
+  @if (page(); as data) {
+    <section class="table-card" aria-label="Eventos de auditoría">
+      <div class="users-toolbar"><span class="users-count">{{ data.total }} eventos</span></div>
+      <div class="orders-table-wrap">
+        <table class="orders-table">
+          <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Resultado</th><th>Detalle</th></tr></thead>
+          <tbody>
+            @for (item of data.items; track item.id) {
+              <tr>
+                <td>{{ formatDate(item.occurredAt) }}</td>
+                <td>{{ item.userName }}@if (item.username) { <small>({{ item.username }})</small> }</td>
+                <td>{{ item.module }}</td>
+                <td>{{ item.action }}</td>
+                <td><span class="user-status" [class]="item.result === 'SUCCESS' ? 'active' : 'inactive'">{{ item.result === 'SUCCESS' ? 'Exitoso' : 'Fallido' }}</span></td>
+                <td>{{ item.description }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6">No hay eventos para los filtros seleccionados.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="audit-pagination">
+        <span>Página {{ currentPage + 1 }} · {{ data.total }} registros</span>
+        <div>
+          <button class="secondary-button" type="button" [disabled]="!canGoBack() || loading()" (click)="showPage(currentPage - 1)">Anterior</button>
+          <button class="secondary-button" type="button" [disabled]="!canGoForward() || loading()" (click)="showPage(currentPage + 1)">Siguiente</button>
+        </div>
+      </div>
+    </section>
+  }
+</section>

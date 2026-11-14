@@ -1,0 +1,128 @@
+<section aria-labelledby="equipment-history-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="equipment-history-title">Historial de Servicios del Equipo</h1>
+      <p>Consulta las órdenes y resultados registrados para este equipo.</p>
+    </div>
+    <a class="outline-button history-back-button" routerLink="/equipos">Volver a Equipos</a>
+  </div>
+
+  @if (loading()) {
+    <p class="order-loading" role="status">Consultando historial en PostgreSQL...</p>
+  } @else if (error()) {
+    <p class="users-feedback error" role="alert">{{ error() }}</p>
+  } @else if (history(); as data) {
+    <section class="equipment-history-summary table-card" aria-label="Información del equipo">
+      <div class="table-card-header">
+        <div>
+          <span class="modal-eyebrow">EQUIPO REGISTRADO</span>
+          <h2>{{ data.equipment.type }} · {{ data.equipment.brand }} {{ data.equipment.model }}</h2>
+        </div>
+      </div>
+      <dl class="equipment-history-facts">
+        <div><dt>Número de serie</dt><dd>{{ data.equipment.serialNumber || 'Sin número de serie' }}</dd></div>
+        <div><dt>Propietario actual</dt><dd>{{ data.equipment.ownerName }} · {{ data.equipment.clientDocument }}</dd></div>
+        <div class="history-fact-wide"><dt>Características</dt><dd>{{ data.equipment.characteristics || 'Sin características registradas.' }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="table-card equipment-history-card" aria-label="Historial de órdenes">
+      <div class="module-toolbar equipment-history-toolbar">
+        <label class="orders-status-filter">
+          Estado
+          <select name="historyStatus" aria-label="Filtrar por estado" [(ngModel)]="status">
+            <option value="">Todos</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="ASIGNADA">Asignada</option>
+            <option value="EN_ATENCION">En atención</option>
+            <option value="FINALIZADA">Finalizada</option>
+            <option value="CERRADA">Cerrada</option>
+            <option value="CANCELADA">Cancelada</option>
+          </select>
+        </label>
+        <label class="orders-status-filter">
+          Desde
+          <input name="historyFrom" type="date" aria-label="Desde fecha" [(ngModel)]="from" />
+        </label>
+        <label class="orders-status-filter">
+          Hasta
+          <input name="historyTo" type="date" aria-label="Hasta fecha" [(ngModel)]="to" />
+        </label>
+        <button class="primary-button compact-button" type="button" (click)="applyFilters()">Filtrar</button>
+        <button class="outline-button compact-button" type="button" (click)="clearFilters()">Limpiar</button>
+      </div>
+
+      @if (data.orders.length) {
+        <div class="orders-table-wrap">
+          <table class="orders-table service-tracking-table">
+            <thead>
+              <tr>
+                <th scope="col">CÓDIGO DE ORDEN</th>
+                <th scope="col">FECHA</th>
+                <th scope="col">PROBLEMA REPORTADO</th>
+                <th scope="col">TÉCNICO</th>
+                <th scope="col">ESTADO</th>
+                <th scope="col">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (record of data.orders; track record.id) {
+                <tr>
+                  <td class="order-id">{{ record.code }}</td>
+                  <td>{{ record.receivedDate | date: 'dd/MM/yyyy' }}</td>
+                  <td>{{ record.reportedProblem }}</td>
+                  <td>{{ record.technicianName || 'Sin asignar' }}</td>
+                  <td><span class="status-badge" [class]="'status-badge status-' + record.status.toLowerCase()">{{ statusLabel(record.status) }}</span></td>
+                  <td>
+                    <button class="table-action action-view" type="button" (click)="selectRecord(record)">
+                      <app-icon name="eye" /> Ver detalle
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="equipment-history-empty">Este equipo todavía no registra servicios técnicos.</p>
+      }
+    </section>
+
+    @if (selectedRecord(); as record) {
+      <section class="equipment-history-detail order-info-card" aria-labelledby="history-order-detail-heading">
+        <div class="table-card-header">
+          <div>
+            <span class="modal-eyebrow">CONSULTA HISTÓRICA</span>
+            <h2 id="history-order-detail-heading">{{ record.code }} · {{ statusLabel(record.status) }}</h2>
+          </div>
+          <button class="outline-button compact-button" type="button" (click)="selectedRecord.set(null)">Cerrar detalle</button>
+        </div>
+        <dl class="order-detail-list">
+          <div><dt>Fecha de ingreso</dt><dd>{{ record.receivedDate | date: 'dd/MM/yyyy' }}</dd></div>
+          <div><dt>Prioridad</dt><dd>{{ record.priority }}</dd></div>
+          <div><dt>Técnico responsable</dt><dd>{{ record.technicianName || 'Sin asignar' }}</dd></div>
+          <div><dt>Fecha de finalización</dt><dd>{{ record.finalizedAt ? (record.finalizedAt | date: 'dd/MM/yyyy HH:mm') : 'Pendiente' }}</dd></div>
+          <div class="order-long-text"><dt>Problema reportado</dt><dd>{{ record.reportedProblem }}</dd></div>
+          @if (record.status === 'FINALIZADA' || record.status === 'CERRADA') {
+            <div class="order-long-text"><dt>Diagnóstico técnico definitivo</dt><dd>{{ record.diagnosis || 'No disponible' }}</dd></div>
+            <div class="order-long-text"><dt>Actividades realizadas</dt><dd>{{ record.actionsPerformed || 'No registradas' }}</dd></div>
+            <div class="order-long-text"><dt>Pruebas efectuadas</dt><dd>{{ record.performedTests || 'No registradas' }}</dd></div>
+            <div class="order-long-text"><dt>Solución o resultado</dt><dd>{{ record.resultSummary || 'No registrado' }}</dd></div>
+          } @else {
+            <div class="order-long-text"><dt>Diagnóstico definitivo</dt><dd>Aún no se ha finalizado la atención.</dd></div>
+          }
+        </dl>
+
+        @if (record.aiValidation) {
+          <section class="historical-ai-panel" aria-label="Prediagnóstico de IA validado">
+            <h3>Prediagnóstico de IA validado por técnico · {{ record.aiValidation }}</h3>
+            <p>Recomendación asistida; no reemplaza el diagnóstico técnico definitivo.</p>
+            @if (record.aiOriginalResponse) { <pre>{{ record.aiOriginalResponse }}</pre> }
+            @if (record.aiModifiedResult) { <h4>Versión revisada por el técnico</h4><pre>{{ record.aiModifiedResult }}</pre> }
+            @if (record.aiValidationObservations) { <p>{{ record.aiValidationObservations }}</p> }
+          </section>
+        }
+      </section>
+    }
+  }
+</section>

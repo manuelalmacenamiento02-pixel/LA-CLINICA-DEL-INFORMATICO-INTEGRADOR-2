@@ -1,0 +1,58 @@
+<section aria-labelledby="monitoring-title">
+  <div class="page-heading">
+    <div><h1 id="monitoring-title">Monitoreo del Sistema</h1><p>Estado de la aplicación y sus servicios dependientes.</p></div>
+    <button class="primary-button" type="button" [disabled]="loading()" (click)="refresh()">
+      {{ loading() ? 'Verificando…' : 'Actualizar estado' }}
+    </button>
+  </div>
+
+  @if (error()) { <p class="users-feedback error" role="alert">{{ error() }}</p> }
+  @if (loading() && !status()) { <p role="status">Consultando los servicios…</p> }
+  @if (status(); as data) {
+    <div class="monitor-summary">
+      <article class="stat-card">
+        <span class="stat-label">Estado general</span>
+        <p class="monitor-state" [class]="data.status.toLowerCase()">{{ statusLabel(data.status) }}</p>
+        <span class="stat-caption">Última verificación: {{ formatDate(data.checkedAt) }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Backend</span>
+        <p class="monitor-state" [class]="data.backend.status.toLowerCase()">{{ statusLabel(data.backend.status) }}</p>
+        <span class="stat-caption">{{ data.backend.message }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">PostgreSQL</span>
+        <p class="monitor-state" [class]="data.database.status.toLowerCase()">{{ statusLabel(data.database.status) }}</p>
+        <span class="stat-caption">{{ data.database.message }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Servicio de IA</span>
+        <p class="monitor-state" [class]="data.ai.status.toLowerCase()">{{ statusLabel(data.ai.status) }}</p>
+        <span class="stat-caption">{{ data.ai.message }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Respuesta del backend</span>
+        <p class="stat-value">{{ data.responseTimeMs }} ms</p>
+        <span class="stat-caption">Tiempo de respuesta de esta verificación</span>
+      </article>
+    </div>
+
+    <section class="table-card" aria-labelledby="technical-events-title">
+      <div class="dashboard-section-heading">
+        <div><h2 id="technical-events-title">Errores recientes registrados</h2><p>Operaciones que finalizaron con resultado fallido.</p></div>
+      </div>
+      <div class="orders-table-wrap">
+        <table class="orders-table">
+          <thead><tr><th>Fecha</th><th>Módulo</th><th>Acción</th><th>Detalle</th></tr></thead>
+          <tbody>
+            @for (item of data.recentErrors; track item.occurredAt + item.action) {
+              <tr><td>{{ formatDate(item.occurredAt) }}</td><td>{{ item.module }}</td><td>{{ item.action }}</td><td>{{ item.message }}</td></tr>
+            } @empty {
+              <tr><td colspan="4">No hay errores recientes registrados.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</section>

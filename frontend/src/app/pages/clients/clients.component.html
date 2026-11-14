@@ -1,0 +1,336 @@
+<section aria-labelledby="clients-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="clients-title">Clientes</h1>
+      <p>Gestiona la información de tus clientes.</p>
+    </div>
+    <button class="primary-button module-new-button" type="button" (click)="openCreate()">
+      <app-icon name="plus" />
+      <span>Nuevo cliente</span>
+    </button>
+  </div>
+
+  @if (feedback) {
+    <p class="module-feedback success" role="status">{{ feedback }}</p>
+  }
+  @if (formError) {
+    <p class="module-feedback error" role="alert">{{ formError }}</p>
+  }
+
+  <section class="table-card module-list-card" aria-label="Lista de clientes">
+    <div class="module-toolbar">
+      <label class="module-search" for="search-client">
+        <app-icon name="search" />
+        <input
+          id="search-client"
+          name="searchClient"
+          type="search"
+          placeholder="Buscar por DNI, RUC, nombres o apellidos"
+          aria-label="Buscar por documento, nombres o apellidos"
+          [(ngModel)]="searchTerm"
+        />
+      </label>
+      <span class="module-count">{{ clientCountLabel }}</span>
+    </div>
+
+    <div class="orders-table-wrap">
+      <table class="orders-table module-table clients-table">
+        <thead>
+          <tr>
+            <th scope="col">DOCUMENTO</th>
+            <th scope="col">CLIENTE</th>
+            <th scope="col">TELÉFONO</th>
+            <th scope="col">CORREO</th>
+            <th scope="col">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (client of filteredClients(); track client.id) {
+            <tr>
+              <td class="order-id">{{ client.documentNumber }}</td>
+              <td class="order-client">{{ fullName(client) }}</td>
+              <td>{{ client.phone }}</td>
+              <td>{{ client.email }}</td>
+              <td>
+                <div class="module-actions">
+                  <button class="table-action action-view" type="button" (click)="openView(client)">
+                    <app-icon name="eye" />
+                    Ver
+                  </button>
+                  <button class="table-action action-edit" type="button" (click)="openEdit(client)">
+                    <app-icon name="edit" />
+                    Editar
+                  </button>
+                  <button class="table-action action-delete" type="button" (click)="deleteClient(client)">
+                    <app-icon name="trash" />
+                    Eliminar
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="module-empty">No se encontraron clientes.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+@if (isModalOpen) {
+  <div
+    class="modal-backdrop"
+    role="presentation"
+    tabindex="-1"
+    (click)="closeModal()"
+    (keydown.escape)="closeModal()"
+  >
+    <section
+      class="user-modal module-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="client-modal-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="user-modal-header">
+        <div>
+          <span class="modal-eyebrow">GESTIÓN DE CLIENTES</span>
+          <h2 id="client-modal-title">{{ modalTitle }}</h2>
+        </div>
+        <button class="icon-button" type="button" aria-label="Cerrar" (click)="closeModal()">
+          <app-icon name="close" />
+        </button>
+      </header>
+
+      <form class="user-modal-form" #clientForm="ngForm" (ngSubmit)="submitClient(clientForm)" novalidate>
+        <div class="modal-fields-grid">
+          <div class="form-field">
+            <label for="client-document-type">Tipo de documento</label>
+            <select
+              id="client-document-type"
+              name="documentType"
+              [(ngModel)]="draft.documentType"
+              [disabled]="modalMode === 'view'"
+              required
+            >
+              @for (type of documentTypes; track type) {
+                <option [ngValue]="type">{{ displayDocumentType(type) }}</option>
+              }
+            </select>
+            @if (submitted && !draft.documentType) {
+              <small class="field-error">Selecciona el tipo de documento.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="client-document-number">Número de documento</label>
+            <input
+              id="client-document-number"
+              name="documentNumber"
+              type="text"
+              [attr.inputmode]="draft.documentType === 'DNI' || draft.documentType === 'RUC' ? 'numeric' : 'text'"
+              [maxlength]="documentMaxLength"
+              placeholder="Ingresa el número"
+              [(ngModel)]="draft.documentNumber"
+              (ngModelChange)="sanitizeDocument($event)"
+              [disabled]="modalMode === 'view'"
+              required
+              #documentControl="ngModel"
+            />
+            @if (submitted && documentControl.invalid) {
+              <small class="field-error">El número de documento es obligatorio.</small>
+            } @else if (submitted && !isValidDocumentValue()) {
+              <small class="field-error">{{ documentFormatError }}</small>
+            } @else if (duplicateDocument) {
+              <small class="field-error">Ya existe un cliente con este documento.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="client-first-name">Nombres</label>
+            <input
+              id="client-first-name"
+              name="firstName"
+              type="text"
+              placeholder="Nombres del cliente"
+              [(ngModel)]="draft.firstName"
+              [disabled]="modalMode === 'view'"
+              required
+              #firstNameControl="ngModel"
+            />
+            @if (submitted && (firstNameControl.invalid || !draft.firstName.trim())) {
+              <small class="field-error">Los nombres son obligatorios.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="client-last-name">
+              Apellidos
+              @if (isRuc) {
+                <span class="optional-label">(opcional para RUC)</span>
+              }
+            </label>
+            <input
+              id="client-last-name"
+              name="lastName"
+              type="text"
+              placeholder="Apellidos del cliente"
+              [(ngModel)]="draft.lastName"
+              [disabled]="modalMode === 'view'"
+              [required]="!isRuc"
+              #lastNameControl="ngModel"
+            />
+            @if (submitted && !isRuc && (lastNameControl.invalid || !draft.lastName.trim())) {
+              <small class="field-error">Los apellidos son obligatorios.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="client-phone">Celular</label>
+            <input
+              id="client-phone"
+              name="phone"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="tel-national"
+              maxlength="9"
+              pattern="[0-9]{9}"
+              placeholder="987654321"
+              [(ngModel)]="draft.phone"
+              (ngModelChange)="sanitizePhone($event)"
+              [disabled]="modalMode === 'view'"
+              required
+              #phoneControl="ngModel"
+            />
+            @if (submitted && (phoneControl.invalid || !isValidPhoneValue())) {
+              <small class="field-error">Ingresa un celular de exactamente 9 dígitos.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="client-email">Correo electrónico</label>
+            <input
+              id="client-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              maxlength="254"
+              placeholder="correo@ejemplo.com"
+              [(ngModel)]="draft.email"
+              (ngModelChange)="updateEmail($event)"
+              [disabled]="modalMode === 'view'"
+              required
+              #emailControl="ngModel"
+            />
+            @if (submitted && emailControl.invalid && !draft.email.trim()) {
+              <small class="field-error">El correo electrónico es obligatorio.</small>
+            } @else if (submitted && (emailControl.invalid || !isValidEmailValue())) {
+              <small class="field-error">
+                Ingresa un correo válido.
+              </small>
+            } @else if (duplicateEmail) {
+              <small class="field-error">Ya existe un cliente con este correo electrónico.</small>
+            }
+          </div>
+
+          <div class="form-field modal-field-full">
+            <label for="client-address">Dirección</label>
+            <input
+              id="client-address"
+              name="address"
+              type="text"
+              autocomplete="street-address"
+              placeholder="Dirección del cliente"
+              [(ngModel)]="draft.address"
+              [disabled]="modalMode === 'view'"
+            />
+          </div>
+
+          <div class="form-field modal-field-full">
+            <label for="client-observations">Observaciones <span class="optional-label">(opcional)</span></label>
+            <textarea
+              id="client-observations"
+              name="observations"
+              rows="3"
+              placeholder="Agrega información adicional..."
+              [(ngModel)]="draft.observations"
+              [disabled]="modalMode === 'view'"
+            ></textarea>
+          </div>
+        </div>
+
+        @if (modalMode === 'view') {
+          @if (detailLoading) {
+            <p class="order-loading" role="status">Cargando equipos y órdenes del cliente...</p>
+          } @else if (detailError) {
+            <p class="users-feedback error" role="alert">{{ detailError }}</p>
+          } @else if (clientDetail) {
+            <div class="client-related-records">
+              <section class="client-related-section" aria-labelledby="client-equipment-heading">
+                <div class="client-related-heading">
+                  <h3 id="client-equipment-heading">Equipos registrados</h3>
+                  <span>{{ clientDetail.equipment.length }}</span>
+                </div>
+                @if (clientDetail.equipment.length) {
+                  <ul class="client-related-list">
+                    @for (item of clientDetail.equipment; track item.id) {
+                      <li>
+                        <span>
+                          <strong>{{ item.type }} · {{ item.brand }} {{ item.model }}</strong>
+                          <small>Serie: {{ item.serialNumber || 'Sin número de serie' }}</small>
+                        </span>
+                        <a [routerLink]="['/equipos', item.id, 'historial']" (click)="closeModal()">Historial</a>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="client-related-empty">Este cliente todavía no tiene equipos registrados.</p>
+                }
+              </section>
+
+              <section class="client-related-section" aria-labelledby="client-orders-heading">
+                <div class="client-related-heading">
+                  <h3 id="client-orders-heading">Órdenes de servicio</h3>
+                  <span>{{ clientDetail.orders.length }}</span>
+                </div>
+                @if (clientDetail.orders.length) {
+                  <ul class="client-related-list">
+                    @for (item of clientDetail.orders; track item.id) {
+                      <li>
+                        <span>
+                          <strong>{{ item.code }} · {{ item.equipmentType }} {{ item.brand }} {{ item.model }}</strong>
+                          <small>{{ item.receivedDate | date: 'dd/MM/yyyy' }} · {{ item.reportedProblem }}</small>
+                        </span>
+                        <a [routerLink]="['/seguimiento', item.id]" (click)="closeModal()">Seguimiento</a>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="client-related-empty">Este cliente todavía no registra órdenes de servicio.</p>
+                }
+              </section>
+            </div>
+          }
+        }
+
+        @if (formError) {
+          <p class="users-feedback error" role="alert">{{ formError }}</p>
+        }
+
+        <footer class="user-modal-actions">
+          <button class="outline-button user-cancel-button" type="button" (click)="closeModal()">
+            {{ modalMode === 'view' ? 'Cerrar' : 'Cancelar' }}
+          </button>
+          @if (modalMode !== 'view') {
+            <button class="primary-button user-save-button" type="submit" [disabled]="busy() > 0">
+              <app-icon name="save" />
+              <span>Guardar cliente</span>
+            </button>
+          }
+        </footer>
+      </form>
+    </section>
+  </div>
+}

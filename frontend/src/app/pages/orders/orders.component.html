@@ -1,0 +1,261 @@
+<section aria-labelledby="orders-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="orders-title">Órdenes de Servicio</h1>
+      <p>Registra y administra las órdenes de servicio técnico.</p>
+    </div>
+    <button class="primary-button module-new-button" type="button" (click)="openCreate()">
+      <app-icon name="plus" />
+      <span>Nueva orden</span>
+    </button>
+  </div>
+
+  @if (feedback) {
+    <p class="module-feedback success" role="status">{{ feedback }}</p>
+  }
+  @if (error) {
+    <p class="module-feedback error" role="alert">{{ error }}</p>
+  }
+
+  <section class="table-card module-list-card" aria-label="Lista de órdenes de servicio">
+    <div class="module-toolbar orders-filters">
+      <label class="module-search" for="search-orders">
+        <app-icon name="search" />
+        <input
+          id="search-orders"
+          name="searchOrders"
+          type="search"
+          placeholder="Buscar por código, cliente o equipo"
+          [(ngModel)]="searchTerm"
+        />
+      </label>
+      <label class="orders-status-filter" for="filter-order-status">
+        <span>Estado</span>
+        <select id="filter-order-status" name="orderStatusFilter" [(ngModel)]="statusFilter">
+          <option value="">Todos</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="EN_ATENCION">En atención</option>
+          <option value="FINALIZADA">Finalizada</option>
+        </select>
+      </label>
+      <span class="module-count">{{ filteredOrders().length }} órdenes</span>
+    </div>
+
+    <div class="orders-table-wrap">
+      <table class="orders-table module-table service-orders-table">
+        <thead>
+          <tr>
+            <th scope="col">CÓDIGO</th>
+            <th scope="col">CLIENTE</th>
+            <th scope="col">EQUIPO</th>
+            <th scope="col">TÉCNICO</th>
+            <th scope="col">FECHA</th>
+            <th scope="col">ESTADO</th>
+            <th scope="col">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of filteredOrders(); track order.id) {
+            <tr>
+              <td class="order-id">{{ order.code }}</td>
+              <td class="order-client">{{ order.clientName }}</td>
+              <td>{{ equipmentName(order) }}</td>
+              <td>{{ order.technicianName || 'Sin asignar' }}</td>
+              <td>{{ order.receivedDate }}</td>
+              <td><span class="status-badge" [class]="'status-badge status-' + order.status.toLowerCase()">{{ statusLabel(order.status) }}</span></td>
+              <td>
+                <div class="module-actions">
+                  <a class="table-action action-view" [routerLink]="['/ordenes', order.id]">
+                    <app-icon name="eye" /> Ver
+                  </a>
+                  <button class="table-action action-edit" type="button" (click)="openEdit(order)">
+                    <app-icon name="edit" /> Editar
+                  </button>
+                  @if (canAssign()) {
+                    <button class="table-action action-history" type="button" (click)="openAssign(order)">
+                      <app-icon name="user-plus" /> Asignar técnico
+                    </button>
+                  }
+                  <button
+                    class="table-action action-history"
+                    type="button"
+                    [disabled]="order.status !== 'PENDIENTE' && order.status !== 'ASIGNADA' && order.status !== 'EN_ATENCION'"
+                    (click)="openStatus(order)"
+                  >
+                    <app-icon name="clock" /> Cambiar estado
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="module-empty">No se encontraron órdenes de servicio.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+@if (modal === 'create' || modal === 'edit') {
+  <div class="modal-backdrop" role="presentation" (click)="closeModal()" (keydown.escape)="closeModal()">
+    <section class="user-modal module-modal" role="dialog" aria-modal="true" aria-labelledby="order-modal-title" (click)="$event.stopPropagation()">
+      <header class="user-modal-header">
+        <div>
+          <span class="modal-eyebrow">GESTIÓN DE ÓRDENES</span>
+          <h2 id="order-modal-title">{{ modal === 'create' ? 'Nueva orden' : 'Editar orden' }}</h2>
+        </div>
+        <button class="icon-button" type="button" aria-label="Cerrar" (click)="closeModal()"><app-icon name="close" /></button>
+      </header>
+
+      <form class="user-modal-form" #orderForm="ngForm" (ngSubmit)="submitOrder(orderForm)" novalidate>
+        @if (modal === 'create') {
+          <div class="order-code-note">
+            <span>Código de orden</span>
+            <strong>Generado automáticamente al guardar</strong>
+          </div>
+        } @else if (selectedOrder) {
+          <div class="order-code-note"><span>Código de orden</span><strong>{{ selectedOrder.code }}</strong></div>
+        }
+
+        <div class="modal-fields-grid">
+          <div class="form-field">
+            <label for="order-client">Cliente</label>
+            <select id="order-client" name="clientId" required [(ngModel)]="draft.clientId" (ngModelChange)="draft.equipmentId = ''">
+              <option value="" disabled>Selecciona un cliente</option>
+              @for (client of clients(); track client.id) {
+                <option [value]="client.id">{{ client.firstName }} {{ client.lastName }} — {{ client.documentNumber }}</option>
+              }
+            </select>
+            @if (submitted && !draft.clientId) { <small class="field-error">Selecciona un cliente.</small> }
+          </div>
+          <div class="form-field">
+            <label for="order-equipment">Equipo</label>
+            <select id="order-equipment" name="equipmentId" required [(ngModel)]="draft.equipmentId" [disabled]="!draft.clientId">
+              <option value="" disabled>Selecciona un equipo</option>
+              @for (equipment of equipmentForSelectedClient(); track equipment.id) {
+                <option [value]="equipment.id">{{ equipment.type }} · {{ equipment.brand }} {{ equipment.model }} · {{ equipment.serialNumber }}</option>
+              }
+            </select>
+            @if (submitted && !draft.equipmentId) { <small class="field-error">Selecciona un equipo del cliente.</small> }
+            @if (draft.clientId && equipmentForSelectedClient().length === 0) {
+              <small class="field-error">Este cliente no tiene equipos registrados.</small>
+            }
+          </div>
+          <div class="form-field">
+            <label for="order-date">Fecha de ingreso</label>
+            <input id="order-date" name="receivedDate" type="date" required [(ngModel)]="draft.receivedDate" />
+          </div>
+          <div class="form-field">
+            <label for="order-priority">Prioridad</label>
+            <select id="order-priority" name="priority" required [(ngModel)]="draft.priority">
+              <option value="BAJA">Baja</option>
+              <option value="MEDIA">Media</option>
+              <option value="ALTA">Alta</option>
+            </select>
+          </div>
+          <div class="form-field modal-field-full">
+            <label for="order-problem">Problema reportado</label>
+            <textarea id="order-problem" name="reportedProblem" rows="3" required maxlength="10000" [(ngModel)]="draft.reportedProblem"></textarea>
+          </div>
+          <div class="form-field modal-field-full">
+            <label for="order-observations">Observaciones iniciales</label>
+            <textarea id="order-observations" name="initialObservations" rows="3" maxlength="10000" [(ngModel)]="draft.initialObservations"></textarea>
+          </div>
+        </div>
+
+        @if (error) { <p class="module-feedback error" role="alert">{{ error }}</p> }
+        <footer class="user-modal-footer">
+          <button class="outline-button" type="button" (click)="closeModal()">Cancelar</button>
+          <button class="primary-button" type="submit" [disabled]="busy()">
+            {{ busy() ? 'Guardando…' : 'Guardar orden' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (modal === 'assign' && selectedOrder; as order) {
+  <div class="modal-backdrop" role="presentation" (click)="closeModal()" (keydown.escape)="closeModal()">
+    <section class="user-modal module-modal" role="dialog" aria-modal="true" aria-labelledby="assignment-modal-title" (click)="$event.stopPropagation()">
+      <header class="user-modal-header">
+        <div>
+          <span class="modal-eyebrow">ASIGNACIÓN DE TÉCNICO</span>
+          <h2 id="assignment-modal-title">{{ order.technicianId ? 'Reasignar técnico' : 'Asignar técnico' }}</h2>
+        </div>
+        <button class="icon-button" type="button" aria-label="Cerrar" (click)="closeModal()"><app-icon name="close" /></button>
+      </header>
+      <div class="user-modal-form">
+        <dl class="order-assignment-summary">
+          <div><dt>Orden</dt><dd>{{ order.code }}</dd></div>
+          <div><dt>Cliente</dt><dd>{{ order.clientName }}</dd></div>
+          <div><dt>Equipo</dt><dd>{{ equipmentName(order) }}</dd></div>
+          <div><dt>Técnico actual</dt><dd>{{ order.technicianName || 'Sin asignar' }}</dd></div>
+        </dl>
+        <div class="form-field">
+          <label for="assignment-technician">Técnico activo</label>
+          <select id="assignment-technician" name="assignmentTechnician" required [(ngModel)]="technicianId">
+            <option value="" disabled>Selecciona un técnico</option>
+            @for (technician of technicians(); track technician.id) {
+              <option [value]="technician.id">{{ technician.firstName }} {{ technician.lastName }} (@{{ technician.username }})</option>
+            }
+          </select>
+          @if (submitted && !technicianId) { <small class="field-error">Selecciona un técnico.</small> }
+          @if (technicians().length === 0) { <small class="field-error">No hay técnicos activos disponibles.</small> }
+        </div>
+        <div class="form-field">
+          <label for="assignment-notes">Observaciones de asignación</label>
+          <textarea id="assignment-notes" name="assignmentNotes" rows="3" maxlength="10000" [(ngModel)]="assignmentNotes"></textarea>
+        </div>
+        @if (error) { <p class="module-feedback error" role="alert">{{ error }}</p> }
+        <footer class="user-modal-footer">
+          <button class="outline-button" type="button" (click)="closeModal()">Cancelar</button>
+          <button class="primary-button" type="button" [disabled]="busy() || technicians().length === 0" (click)="submitAssignment()">
+            {{ busy() ? 'Guardando…' : 'Guardar asignación' }}
+          </button>
+        </footer>
+      </div>
+    </section>
+  </div>
+}
+
+@if (modal === 'status' && selectedOrder; as order) {
+  <div class="modal-backdrop" role="presentation" (click)="closeModal()" (keydown.escape)="closeModal()">
+    <section class="user-modal module-modal" role="dialog" aria-modal="true" aria-labelledby="status-modal-title" (click)="$event.stopPropagation()">
+      <header class="user-modal-header">
+        <div>
+          <span class="modal-eyebrow">ACTUALIZACIÓN DE ESTADO</span>
+          <h2 id="status-modal-title">Cambiar estado</h2>
+        </div>
+        <button class="icon-button" type="button" aria-label="Cerrar" (click)="closeModal()"><app-icon name="close" /></button>
+      </header>
+      <div class="user-modal-form">
+        <p>Orden <strong>{{ order.code }}</strong> · estado actual: <strong>{{ statusLabel(order.status) }}</strong></p>
+        <div class="form-field">
+          <label for="next-order-status">Nuevo estado</label>
+          <select id="next-order-status" name="nextOrderStatus" [(ngModel)]="nextStatus">
+            @if (order.status === 'PENDIENTE' || order.status === 'ASIGNADA') {
+              <option value="EN_ATENCION" [disabled]="!order.technicianId">En atención</option>
+            } @else {
+              <option value="FINALIZADA" disabled>Finalizada — requiere diagnóstico (Sprint 4)</option>
+            }
+          </select>
+          @if ((order.status === 'PENDIENTE' || order.status === 'ASIGNADA') && !order.technicianId) {
+            <small class="field-error">Asigna un técnico antes de iniciar la atención.</small>
+          }
+        </div>
+        <div class="form-field">
+          <label for="status-reason">Observaciones del cambio</label>
+          <textarea id="status-reason" name="statusReason" rows="3" maxlength="10000" [(ngModel)]="statusReason"></textarea>
+        </div>
+        @if (error) { <p class="module-feedback error" role="alert">{{ error }}</p> }
+        <footer class="user-modal-footer">
+          <button class="outline-button" type="button" (click)="closeModal()">Cancelar</button>
+          <button class="primary-button" type="button" [disabled]="busy() || (order.status !== 'PENDIENTE' && order.status !== 'ASIGNADA') || !order.technicianId" (click)="submitStatus()">
+            Confirmar cambio
+          </button>
+        </footer>
+      </div>
+    </section>
+  </div>
+}

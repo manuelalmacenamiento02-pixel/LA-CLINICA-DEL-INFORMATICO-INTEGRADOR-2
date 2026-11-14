@@ -1,0 +1,38 @@
+<section aria-labelledby="backups-title">
+  <div class="page-heading">
+    <div><h1 id="backups-title">Respaldos del Sistema</h1><p>Genera y consulta respaldos reales de la base de datos PostgreSQL.</p></div>
+    <button class="primary-button" type="button" [disabled]="creating()" (click)="createBackup()">
+      {{ creating() ? 'Generando respaldo…' : 'Generar respaldo' }}
+    </button>
+  </div>
+
+  @if (error()) { <p class="users-feedback error" role="alert">{{ error() }}</p> }
+  @if (notice()) { <p class="users-feedback success" role="status">{{ notice() }}</p> }
+  @if (loading()) { <p role="status">Cargando historial…</p> }
+
+  <section class="table-card" aria-label="Historial de respaldos">
+    <div class="orders-table-wrap">
+      <table class="orders-table">
+        <thead><tr><th>Inicio</th><th>Estado</th><th>Tamaño</th><th>Archivo</th><th>Detalle</th><th>Descarga</th></tr></thead>
+        <tbody>
+          @for (run of runs(); track run.id) {
+            <tr>
+              <td>{{ formatDate(run.startedAt) }}</td>
+              <td>{{ statusLabel(run.status) }}</td>
+              <td>{{ formatSize(run.sizeBytes) }}</td>
+              <td>{{ run.fileName || '—' }}</td>
+              <td>{{ run.errorMessage || (run.checksum ? 'SHA-256: ' + run.checksum : '—') }}</td>
+              <td>
+                @if (run.status === 'COMPLETADO') {
+                  <a class="table-action" [href]="'/api/admin/backups/' + run.id + '/download'">Descargar</a>
+                } @else { — }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6">Todavía no hay respaldos registrados.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>

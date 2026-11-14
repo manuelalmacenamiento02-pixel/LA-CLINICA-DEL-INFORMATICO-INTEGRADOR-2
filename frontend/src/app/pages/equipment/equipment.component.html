@@ -1,0 +1,306 @@
+<section aria-labelledby="equipment-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="equipment-title">Equipos</h1>
+      <p>Administra los equipos registrados por tus clientes.</p>
+    </div>
+    <button class="primary-button module-new-button" type="button" (click)="openCreate()">
+      <app-icon name="plus" />
+      <span>Nuevo equipo</span>
+    </button>
+  </div>
+
+  @if (feedback) {
+    <p class="module-feedback success" role="status">{{ feedback }}</p>
+  }
+  @if (formError) {
+    <p class="module-feedback error" role="alert">{{ formError }}</p>
+  }
+
+  <section class="table-card module-list-card" aria-label="Lista de equipos">
+    <div class="module-toolbar">
+      <label class="module-search" for="search-equipment">
+        <app-icon name="search" />
+        <input
+          id="search-equipment"
+          name="searchEquipment"
+          type="search"
+          placeholder="Buscar por serie"
+          aria-label="Buscar por serie, tipo, marca, modelo o propietario"
+          [(ngModel)]="searchTerm"
+        />
+      </label>
+      <span class="module-count">{{ equipmentCountLabel }}</span>
+    </div>
+
+    <div class="orders-table-wrap">
+      <table class="orders-table module-table equipment-table">
+        <thead>
+          <tr>
+            <th scope="col">TIPO</th>
+            <th scope="col">MARCA</th>
+            <th scope="col">MODELO</th>
+            <th scope="col">N.º SERIE</th>
+            <th scope="col">PROPIETARIO</th>
+            <th scope="col">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredEquipment(); track item.id) {
+            <tr>
+              <td>{{ item.type }}</td>
+              <td class="order-client">{{ item.brand }}</td>
+              <td>{{ item.model }}</td>
+              <td class="order-id">{{ item.serialNumber || 'Sin número de serie' }}</td>
+              <td>{{ ownerName(item.clientId) }}</td>
+              <td>
+                <div class="module-actions">
+                  <button class="table-action action-view" type="button" (click)="openView(item)">
+                    <app-icon name="eye" />
+                    Ver
+                  </button>
+                  <button class="table-action action-edit" type="button" (click)="openEdit(item)">
+                    <app-icon name="edit" />
+                    Editar
+                  </button>
+                  <button class="table-action action-delete" type="button" (click)="deleteEquipment(item)">
+                    <app-icon name="trash" />
+                    Eliminar
+                  </button>
+                  <a
+                    class="table-action action-history"
+                    [routerLink]="['/equipos', item.id, 'historial']"
+                  >
+                    <app-icon name="clock" />
+                    Historial
+                  </a>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="module-empty">No se encontraron equipos.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+@if (isModalOpen) {
+  <div
+    class="modal-backdrop"
+    role="presentation"
+    tabindex="-1"
+    (click)="closeModal()"
+    (keydown.escape)="closeModal()"
+  >
+    <section
+      class="user-modal module-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="equipment-modal-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="user-modal-header">
+        <div>
+          <span class="modal-eyebrow">GESTIÓN DE EQUIPOS</span>
+          <h2 id="equipment-modal-title">{{ modalTitle }}</h2>
+        </div>
+        <button class="icon-button" type="button" aria-label="Cerrar" (click)="closeModal()">
+          <app-icon name="close" />
+        </button>
+      </header>
+
+      <form class="user-modal-form" #equipmentForm="ngForm" (ngSubmit)="submitEquipment(equipmentForm)" novalidate>
+        <div class="modal-fields-grid">
+          <div class="form-field modal-field-full">
+            <label for="equipment-client-search">Buscar cliente</label>
+            <input
+              id="equipment-client-search"
+              name="clientSearch"
+              type="search"
+              autocomplete="off"
+              placeholder="Buscar por nombre, DNI, celular o correo"
+              aria-label="Buscar cliente por nombre, DNI, celular o correo"
+              [ngModel]="clientSearch"
+              (ngModelChange)="setClientSearch($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="modalMode === 'view' || clients().length === 0"
+            />
+            @if (clientSearch.trim()) {
+              <span class="client-search-label">Resultados de clientes</span>
+              <div class="client-search-results" role="list">
+                @for (client of matchingClients(); track client.id) {
+                  <button
+                    class="client-search-result"
+                    type="button"
+                    role="listitem"
+                    [class.selected]="draft.clientId === client.id"
+                    [attr.aria-pressed]="draft.clientId === client.id"
+                    [disabled]="modalMode === 'view'"
+                    (click)="selectClient(client)"
+                  >
+                    <span>{{ client.firstName }} {{ client.lastName }}</span>
+                    <span>DNI {{ client.documentNumber }} · {{ client.phone }}</span>
+                  </button>
+                } @empty {
+                  <span class="client-search-empty">No se encontraron clientes con esa búsqueda.</span>
+                }
+              </div>
+            } @else {
+              <small class="client-search-hint">Escribe para buscar entre los clientes registrados.</small>
+            }
+            @if (draft.clientId) {
+              <small class="client-selection-confirmation" role="status">
+                Cliente asociado: {{ ownerName(draft.clientId) }}
+              </small>
+            }
+            @if (submitted && !draft.clientId) {
+              <small class="field-error">Selecciona un cliente registrado.</small>
+            } @else if (clients().length === 0) {
+              <small class="field-error">
+                Registra un cliente en el módulo Clientes antes de agregar un equipo.
+              </small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="equipment-type">Tipo de equipo</label>
+            <select
+              id="equipment-type"
+              name="type"
+              [(ngModel)]="draft.type"
+              [disabled]="modalMode === 'view'"
+              required
+            >
+              @for (type of equipmentTypes; track type) {
+                <option [ngValue]="type">{{ displayType(type) }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="equipment-brand">Marca</label>
+            <input
+              id="equipment-brand"
+              name="brand"
+              type="text"
+              placeholder="Ej. Lenovo"
+              [(ngModel)]="draft.brand"
+              [disabled]="modalMode === 'view'"
+              required
+              #brandControl="ngModel"
+            />
+            @if (submitted && (brandControl.invalid || !draft.brand.trim())) {
+              <small class="field-error">La marca es obligatoria.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="equipment-model">Modelo</label>
+            <input
+              id="equipment-model"
+              name="model"
+              type="text"
+              placeholder="Ej. ThinkPad E14"
+              [(ngModel)]="draft.model"
+              [disabled]="modalMode === 'view'"
+              required
+              #modelControl="ngModel"
+            />
+            @if (submitted && (modelControl.invalid || !draft.model.trim())) {
+              <small class="field-error">El modelo es obligatorio.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="equipment-serial">
+              Número de serie
+              @if (isOtherType) {
+                <span class="optional-label">(opcional para Otro)</span>
+              }
+            </label>
+            <input
+              id="equipment-serial"
+              name="serialNumber"
+              type="text"
+              placeholder="Número de serie"
+              [(ngModel)]="draft.serialNumber"
+              [disabled]="modalMode === 'view'"
+              [required]="isSerialRequired"
+            />
+            @if (submitted && isSerialRequired && !draft.serialNumber.trim()) {
+              <small class="field-error">El número de serie es obligatorio para este equipo.</small>
+            } @else if (duplicateSerial) {
+              <small class="field-error">Ya existe un equipo con este número de serie.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="equipment-characteristics">
+              Características <span class="optional-label">(opcional)</span>
+            </label>
+            <input
+              id="equipment-characteristics"
+              name="characteristics"
+              type="text"
+              placeholder="Especificaciones principales"
+              [(ngModel)]="draft.characteristics"
+              [disabled]="modalMode === 'view'"
+            />
+          </div>
+
+          <div class="form-field modal-field-full">
+            <label for="equipment-accessories">
+              Accesorios recibidos <span class="optional-label">(opcional)</span>
+            </label>
+            <input
+              id="equipment-accessories"
+              name="accessories"
+              type="text"
+              placeholder="Ej. Cargador, cable de poder"
+              [(ngModel)]="draft.accessories"
+              [disabled]="modalMode === 'view'"
+            />
+          </div>
+
+          <div class="form-field modal-field-full">
+            <label for="equipment-observations">
+              Observaciones <span class="optional-label">(opcional)</span>
+            </label>
+            <textarea
+              id="equipment-observations"
+              name="observations"
+              rows="3"
+              placeholder="Agrega información adicional..."
+              [(ngModel)]="draft.observations"
+              [disabled]="modalMode === 'view'"
+            ></textarea>
+          </div>
+        </div>
+
+        @if (formError) {
+          <p class="users-feedback error" role="alert">{{ formError }}</p>
+        }
+
+        <footer class="user-modal-actions">
+          <button class="outline-button user-cancel-button" type="button" (click)="closeModal()">
+            {{ modalMode === 'view' ? 'Cerrar' : 'Cancelar' }}
+          </button>
+          @if (modalMode !== 'view') {
+            <button
+              class="primary-button user-save-button"
+              type="submit"
+              [disabled]="busy() > 0 || clients().length === 0"
+            >
+              <app-icon name="save" />
+              <span>Guardar equipo</span>
+            </button>
+          }
+        </footer>
+      </form>
+    </section>
+  </div>
+}
