@@ -1,6 +1,0 @@
-
-Iniciar backend
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "..\scripts\Start-Backend.ps1"-ActualizarClave
-
-Iniciar el frontend
-npm.cmd start
