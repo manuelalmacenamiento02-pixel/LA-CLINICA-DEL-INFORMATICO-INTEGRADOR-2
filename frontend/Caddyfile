@@ -1,0 +1,18 @@
+{
+	admin off
+}
+
+:{$PORT:8080} {
+	root * /srv
+	encode gzip
+
+	# Same-origin proxy so the session cookie (SameSite=strict) keeps working.
+	handle /api/* {
+		reverse_proxy {$BACKEND_URL:http://localhost:8080}
+	}
+
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}
