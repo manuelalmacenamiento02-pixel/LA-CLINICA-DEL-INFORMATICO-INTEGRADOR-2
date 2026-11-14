@@ -274,7 +274,8 @@ INSERT INTO permissions(code,description) VALUES
 INSERT INTO role_permissions SELECT 'ADMINISTRADOR',code FROM permissions;
 INSERT INTO role_permissions(role_code,permission_code) VALUES
  ('PERSONAL DE ATENCIÓN','dashboard'),('PERSONAL DE ATENCIÓN','clients'),
- ('PERSONAL DE ATENCIÓN','equipment'),('PERSONAL DE ATENCIÓN','orders'),('PERSONAL DE ATENCIÓN','service-tracking'),
+ ('PERSONAL DE ATENCIÓN','equipment'),('PERSONAL DE ATENCIÓN','orders'),
+ ('PERSONAL DE ATENCIÓN','assign-technicians'),('PERSONAL DE ATENCIÓN','service-tracking'),
  ('TÉCNICO','dashboard'),('TÉCNICO','assigned-orders'),('TÉCNICO','attend-orders'),
  ('TÉCNICO','ai-prediagnosis'),('TÉCNICO','service-tracking');
 INSERT INTO order_statuses(code,name,terminal) VALUES

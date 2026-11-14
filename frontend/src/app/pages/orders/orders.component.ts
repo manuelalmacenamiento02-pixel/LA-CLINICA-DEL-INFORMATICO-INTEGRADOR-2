@@ -29,6 +29,15 @@ export class OrdersComponent implements OnInit {
   protected readonly allEquipment = this.equipmentService.equipment;
   protected readonly orders = this.orderService.orders;
   protected readonly technicians = this.orderService.technicians;
+  protected filteredClients() {
+    const query = normalize(this.clientSearchTerm).split(/\s+/).filter(Boolean);
+    return this.clients().filter((client) => {
+      const searchable = normalize(
+        `${client.firstName} ${client.lastName} ${client.documentNumber}`,
+      );
+      return query.length === 0 || query.every((term) => searchable.includes(term));
+    });
+  }
   protected readonly canAssign = computed(() => {
     const role = this.apiStore.user()?.role;
     return !!role && this.permissions.can(role, 'assign-technicians');
@@ -55,6 +64,7 @@ export class OrdersComponent implements OnInit {
   protected error = '';
   protected feedback = '';
   protected draft = this.emptyDraft();
+  protected clientSearchTerm = '';
   protected technicianId = '';
   protected assignmentNotes = '';
   protected nextStatus: OrderStatus = 'EN_ATENCION';
@@ -77,9 +87,16 @@ export class OrdersComponent implements OnInit {
     return this.allEquipment().filter((item) => item.clientId === this.draft.clientId);
   }
 
+  protected updateClientSearch(event: Event): void {
+    if (event.target instanceof HTMLInputElement) {
+      this.clientSearchTerm = event.target.value;
+    }
+  }
+
   protected openCreate(): void {
     this.selectedOrder = null;
     this.draft = this.emptyDraft();
+    this.clientSearchTerm = '';
     this.submitted = false;
     this.error = '';
     this.feedback = '';
@@ -88,6 +105,7 @@ export class OrdersComponent implements OnInit {
 
   protected openEdit(order: ServiceOrder): void {
     this.selectedOrder = order;
+    this.clientSearchTerm = '';
     this.draft = {
       clientId: order.clientId,
       equipmentId: order.equipmentId,

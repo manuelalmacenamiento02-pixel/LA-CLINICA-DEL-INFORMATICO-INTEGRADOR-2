@@ -119,13 +119,27 @@
 
         <div class="modal-fields-grid">
           <div class="form-field">
+            <label for="order-client-search">Buscar cliente por nombre o DNI</label>
+            <input
+              id="order-client-search"
+              type="search"
+              placeholder="Escribe el nombre o DNI"
+              autocomplete="off"
+              [value]="clientSearchTerm"
+              (input)="updateClientSearch($event)"
+            />
+          </div>
+          <div class="form-field">
             <label for="order-client">Cliente</label>
             <select id="order-client" name="clientId" required [(ngModel)]="draft.clientId" (ngModelChange)="draft.equipmentId = ''">
               <option value="" disabled>Selecciona un cliente</option>
-              @for (client of clients(); track client.id) {
+              @for (client of filteredClients(); track client.id) {
                 <option [value]="client.id">{{ client.firstName }} {{ client.lastName }} — {{ client.documentNumber }}</option>
               }
             </select>
+            @if (filteredClients().length === 0) {
+              <small class="field-error">No se encontraron clientes con ese nombre o DNI.</small>
+            }
             @if (submitted && !draft.clientId) { <small class="field-error">Selecciona un cliente.</small> }
           </div>
           <div class="form-field">

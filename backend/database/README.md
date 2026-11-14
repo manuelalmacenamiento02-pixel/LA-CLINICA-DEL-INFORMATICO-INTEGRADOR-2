@@ -88,8 +88,8 @@ Todas las mutaciones requieren `X-Requested-With: XMLHttpRequest`. Login y segui
 | `GET /api/orders/{id}` | Permiso `orders` o `assigned-orders`; acceso limitado a órdenes propias para técnicos |
 | `PUT /api/orders/{id}` | Permiso `orders` |
 | `GET /api/orders/mine` | Permiso `assigned-orders`; filtra por el usuario autenticado |
-| `GET /api/orders/technicians` | Permiso `assign-technicians`; solo técnicos activos |
-| `POST /api/orders/{id}/assignment` | Permiso `assign-technicians`; guarda responsable, fecha y observaciones |
+| `GET /api/orders/technicians` | Permiso `assign-technicians` (Personal de Atención y administrador); solo técnicos activos |
+| `POST /api/orders/{id}/assignment` | Permiso `assign-technicians` (Personal de Atención y administrador); guarda responsable, fecha y observaciones |
 | `PATCH /api/orders/{id}/status` | Permiso `orders` o `attend-orders`; registra el historial en la misma transacción |
 | `GET, PUT /api/orders/{id}/attention` | Técnico asignado o permiso `attend-orders`; guarda avances sin finalizar |
 | `POST /api/orders/{id}/finalize` | Técnico asignado o permiso `attend-orders`; exige orden EN_ATENCION y diagnóstico, actividades y resultado |
