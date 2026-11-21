@@ -163,6 +163,41 @@ public class BackupService {
         return run;
     }
 
+    public int removeExpiredBackups(int retentionDays) {
+        if (retentionDays < 1) {
+            throw new IllegalArgumentException("La retención de respaldos debe ser de al menos un día.");
+        }
+        List<Map<String, Object>> expired = jdbc.queryForList("""
+            SELECT id::text AS id,file_path AS "filePath"
+            FROM backup_runs
+            WHERE status='COMPLETADO'
+              AND started_at < now() - (? * interval '1 day')
+            ORDER BY started_at
+            """, retentionDays);
+
+        int removed = 0;
+        for (Map<String, Object> run : expired) {
+            UUID id = UUID.fromString(run.get("id").toString());
+            Object pathValue = run.get("filePath");
+            if (pathValue != null) {
+                Path file = Path.of(pathValue.toString()).toAbsolutePath().normalize();
+                if (!backupDirectory.equals(file.getParent())) {
+                    LOGGER.log(System.Logger.Level.ERROR,
+                        "Se omitió eliminar un respaldo fuera de la carpeta configurada: " + id);
+                    continue;
+                }
+                try {
+                    Files.deleteIfExists(file);
+                } catch (IOException e) {
+                    LOGGER.log(System.Logger.Level.ERROR, "No se pudo eliminar el respaldo vencido: " + id, e);
+                    continue;
+                }
+            }
+            removed += jdbc.update("DELETE FROM backup_runs WHERE id=? AND status='COMPLETADO'", id);
+        }
+        return removed;
+    }
+
     private boolean acquireLock(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("SELECT pg_try_advisory_lock(?)")) {
             statement.setLong(1, ADVISORY_LOCK_ID);
