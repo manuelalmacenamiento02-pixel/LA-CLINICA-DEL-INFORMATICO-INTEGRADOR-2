@@ -568,6 +568,176 @@ a {
   min-height: 38px;
 }
 
+.technician-performance {
+  margin-top: 22px;
+  overflow: hidden;
+  border: 1px solid #e6ebf1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(39 61 83 / 5%);
+}
+
+.technician-performance-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 21px 24px;
+}
+
+.technician-performance-eyebrow {
+  color: #4381d8;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.technician-performance-heading h2 {
+  margin: 6px 0 4px;
+  color: #20384c;
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.technician-performance-heading p,
+.technician-performance-note {
+  margin: 0;
+  color: #7e8b99;
+  font-size: 11px;
+}
+
+.technician-count {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 1px solid #e2ebf8;
+  border-radius: 999px;
+  color: #3775c5;
+  background: #f3f7fd;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.technician-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid #edf0f4;
+}
+
+.technician-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.technician-table th {
+  padding: 12px 24px;
+  color: #8492a1;
+  background: #f8fafc;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.technician-table td {
+  padding: 14px 24px;
+  border-top: 1px solid #f0f2f5;
+  color: #4a5e71;
+  font-size: 12px;
+}
+
+.technician-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.technician-table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.technician-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.technician-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 50%;
+  color: #3272c3;
+  background: #eaf2ff;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.technician-name {
+  color: #2b4054;
+  font-weight: 650;
+}
+
+.technician-metric {
+  display: inline-flex;
+  min-width: 34px;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 8px;
+  color: #3e617f;
+  background: #f1f5f9;
+  font-weight: 750;
+}
+
+.technician-metric.finalized {
+  color: #21835c;
+  background: #eaf7f0;
+}
+
+.technician-progress {
+  display: flex;
+  min-width: 150px;
+  align-items: center;
+  gap: 10px;
+}
+
+.technician-progress-track {
+  height: 7px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf1f5;
+}
+
+.technician-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #55b88b, #27845e);
+  transition: width 180ms ease;
+}
+
+.technician-progress-value {
+  min-width: 34px;
+  color: #607284;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.technician-table .technician-empty {
+  padding: 30px 20px;
+  color: #8794a2;
+  text-align: center;
+}
+
+.technician-performance-note {
+  padding: 12px 24px;
+  border-top: 1px solid #edf0f4;
+  background: #fbfcfe;
+  line-height: 1.5;
+}
+
 .dashboard-charts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -712,6 +882,16 @@ a {
 @media (max-width: 520px) {
   .indicator-filters {
     grid-template-columns: 1fr;
+  }
+
+  .technician-performance-heading {
+    align-items: flex-start;
+    padding: 18px;
+  }
+
+  .technician-performance-note {
+    padding-right: 18px;
+    padding-left: 18px;
   }
 
   .audit-pagination {

@@ -45,22 +45,54 @@
       <article class="stat-card"><span class="stat-label">Promedio de atención finalizada</span><p class="stat-value">{{ averageHours(data.average_attention_hours) }}</p></article>
     </div>
 
-    <section class="table-section" aria-labelledby="technician-report-title">
-      <div class="dashboard-section-heading">
-        <div><h2 id="technician-report-title">Servicios por técnico</h2><p>Órdenes sin duplicar por técnico.</p></div>
-      </div>
-      <div class="table-responsive">
-        <table>
-          <thead><tr><th>Técnico</th><th>Servicios atendidos</th><th>Finalizados</th></tr></thead>
+    <section class="technician-performance" aria-labelledby="technician-report-title">
+      <header class="technician-performance-heading">
+        <div>
+          <span class="technician-performance-eyebrow">RENDIMIENTO DEL EQUIPO</span>
+          <h2 id="technician-report-title">Servicios por técnico</h2>
+          <p>Seguimiento de atenciones registradas y servicios finalizados.</p>
+        </div>
+        <span class="technician-count">{{ data.byTechnician.length }} técnicos</span>
+      </header>
+      <div class="technician-table-wrap">
+        <table class="technician-table">
+          <thead>
+            <tr><th>Técnico</th><th>Servicios atendidos</th><th>Finalizados</th><th>Avance</th></tr>
+          </thead>
           <tbody>
             @for (item of data.byTechnician; track item.technicianId) {
-              <tr><td>{{ item.technicianName }}</td><td>{{ item.total }}</td><td>{{ item.finalized }}</td></tr>
+              <tr>
+                <td>
+                  <div class="technician-identity">
+                    <span class="technician-avatar" aria-hidden="true">{{ technicianInitials(item.technicianName) }}</span>
+                    <span class="technician-name">{{ item.technicianName }}</span>
+                  </div>
+                </td>
+                <td><span class="technician-metric">{{ item.attended }}</span></td>
+                <td><span class="technician-metric finalized">{{ item.finalized }}</span></td>
+                <td>
+                  <div class="technician-progress">
+                    <div class="technician-progress-track" role="progressbar"
+                      [attr.aria-label]="'Avance de ' + item.technicianName"
+                      [attr.aria-valuenow]="completionRate(item.attended, item.finalized)"
+                      aria-valuemin="0" aria-valuemax="100">
+                      <span [style.width.%]="completionRate(item.attended, item.finalized)"></span>
+                    </div>
+                    <span class="technician-progress-value">
+                      {{ completionRate(item.attended, item.finalized) }}%
+                    </span>
+                  </div>
+                </td>
+              </tr>
             } @empty {
-              <tr><td colspan="3">Sin datos para los filtros seleccionados.</td></tr>
+              <tr><td class="technician-empty" colspan="4">No hay atenciones para los filtros seleccionados.</td></tr>
             }
           </tbody>
         </table>
       </div>
+      <p class="technician-performance-note">
+        “Atendidos” cuenta servicios con una atención técnica guardada. El avance es la proporción finalizada sobre atendidos.
+      </p>
     </section>
   }
 </section>

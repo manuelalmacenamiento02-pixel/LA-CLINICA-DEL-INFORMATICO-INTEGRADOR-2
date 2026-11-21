@@ -91,12 +91,14 @@ public class SprintSixService {
             )
             SELECT technician.id::text AS "technicianId",
               btrim(technician.first_name || ' ' || technician.last_name) AS "technicianName",
-              count(DISTINCT filtered.id) AS total,
-              count(DISTINCT filtered.id) FILTER (
+              count(DISTINCT attention.order_id) AS attended,
+              count(DISTINCT attention.order_id) FILTER (
                 WHERE filtered.status_code IN ('FINALIZADA','CERRADA')) AS finalized
             FROM filtered
             JOIN technician_assignments assignment ON assignment.order_id=filtered.id
             JOIN users technician ON technician.id=assignment.technician_id
+            LEFT JOIN technical_attentions attention
+              ON attention.order_id=filtered.id AND attention.technician_id=technician.id
             WHERE (?::uuid IS NULL OR technician.id=?::uuid)
             GROUP BY technician.id,technician.first_name,technician.last_name
             ORDER BY technician.first_name,technician.last_name,technician.id

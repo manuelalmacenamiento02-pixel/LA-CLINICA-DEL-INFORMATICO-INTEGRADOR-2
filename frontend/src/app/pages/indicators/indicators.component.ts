@@ -48,4 +48,12 @@ export class IndicatorsComponent {
   protected averageHours(value: number | null): string {
     return value === null ? 'Sin datos' : `${Number(value).toFixed(2)} h`;
   }
+
+  protected completionRate(attended: number, finalized: number): number {
+    return attended === 0 ? 0 : Math.round((finalized / attended) * 100);
+  }
+
+  protected technicianInitials(name: string): string {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+  }
 }

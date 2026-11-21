@@ -22,7 +22,7 @@ export interface ServiceIndicators {
   byTechnician: Array<{
     technicianId: string;
     technicianName: string;
-    total: number;
+    attended: number;
     finalized: number;
   }>;
 }
