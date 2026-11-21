@@ -879,47 +879,34 @@ a {
   font-weight: 700;
 }
 
-.technician-table-wrap {
-  overflow-x: auto;
+.technician-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+  padding: 16px;
   border-top: 1px solid #edf0f4;
 }
 
-.technician-table {
-  width: 100%;
-  min-width: 620px;
-  border-collapse: collapse;
-  text-align: left;
+.technician-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e8edf3;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
-.technician-table th {
-  padding: 12px 24px;
-  color: #8492a1;
-  background: #f8fafc;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.technician-card:hover {
+  transform: translateY(-1px);
+  border-color: #d7e4f4;
+  box-shadow: 0 7px 18px rgb(39 61 83 / 6%);
 }
 
-.technician-table td {
-  padding: 14px 24px;
-  border-top: 1px solid #f0f2f5;
-  color: #4a5e71;
-  font-size: 12px;
-}
-
-.technician-table tbody tr {
-  transition: background-color 140ms ease;
-}
-
-.technician-table tbody tr:hover {
-  background: #f8fbff;
-}
-
-.technician-identity {
+.technician-card-heading {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
+  min-width: 0;
 }
 
 .technician-avatar {
@@ -936,39 +923,78 @@ a {
 }
 
 .technician-name {
+  min-width: 0;
+  margin: 0;
   color: #2b4054;
+  font-size: 13px;
   font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
-.technician-metric {
-  display: inline-flex;
-  min-width: 34px;
-  justify-content: center;
-  padding: 5px 9px;
-  border-radius: 8px;
-  color: #3e617f;
-  background: #f1f5f9;
-  font-weight: 750;
+.technician-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
 }
 
-.technician-metric.finalized {
-  color: #21835c;
+.technician-metric-card {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding: 11px 12px;
+  border: 1px solid #edf1f5;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.technician-metric-card.finalized {
+  border-color: #e1f1e9;
   background: #eaf7f0;
 }
 
+.technician-metric-label {
+  color: #748395;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.technician-metric-value {
+  color: #304c66;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.technician-metric-card.finalized .technician-metric-value {
+  color: #21835c;
+}
+
 .technician-progress {
+  margin-top: 15px;
+}
+
+.technician-progress-heading {
   display: flex;
-  min-width: 150px;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  color: #718094;
+  font-size: 10px;
+}
+
+.technician-progress-heading strong {
+  color: #3d705d;
+  font-size: 11px;
 }
 
 .technician-progress-track {
-  height: 7px;
-  flex: 1;
+  height: 8px;
   overflow: hidden;
   border-radius: 999px;
   background: #edf1f5;
+  margin-top: 8px;
 }
 
 .technician-progress-track span {
@@ -979,17 +1005,15 @@ a {
   transition: width 180ms ease;
 }
 
-.technician-progress-value {
-  min-width: 34px;
-  color: #607284;
-  font-size: 10px;
-  font-weight: 700;
-  text-align: right;
-}
-
-.technician-table .technician-empty {
+.technician-empty {
+  grid-column: 1 / -1;
+  margin: 0;
   padding: 30px 20px;
+  border: 1px dashed #dfe6ee;
+  border-radius: 10px;
   color: #8794a2;
+  background: #fbfcfe;
+  font-size: 12px;
   text-align: center;
 }
 

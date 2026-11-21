@@ -54,41 +54,39 @@
         </div>
         <span class="technician-count">{{ data.byTechnician.length }} técnicos</span>
       </header>
-      <div class="technician-table-wrap">
-        <table class="technician-table">
-          <thead>
-            <tr><th>Técnico</th><th>Servicios atendidos</th><th>Finalizados</th><th>Avance</th></tr>
-          </thead>
-          <tbody>
-            @for (item of data.byTechnician; track item.technicianId) {
-              <tr>
-                <td>
-                  <div class="technician-identity">
-                    <span class="technician-avatar" aria-hidden="true">{{ technicianInitials(item.technicianName) }}</span>
-                    <span class="technician-name">{{ item.technicianName }}</span>
-                  </div>
-                </td>
-                <td><span class="technician-metric">{{ item.attended }}</span></td>
-                <td><span class="technician-metric finalized">{{ item.finalized }}</span></td>
-                <td>
-                  <div class="technician-progress">
-                    <div class="technician-progress-track" role="progressbar"
-                      [attr.aria-label]="'Avance de ' + item.technicianName"
-                      [attr.aria-valuenow]="completionRate(item.attended, item.finalized)"
-                      aria-valuemin="0" aria-valuemax="100">
-                      <span [style.width.%]="completionRate(item.attended, item.finalized)"></span>
-                    </div>
-                    <span class="technician-progress-value">
-                      {{ completionRate(item.attended, item.finalized) }}%
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            } @empty {
-              <tr><td class="technician-empty" colspan="4">No hay atenciones para los filtros seleccionados.</td></tr>
-            }
-          </tbody>
-        </table>
+      <div class="technician-list">
+        @for (item of data.byTechnician; track item.technicianId) {
+          <article class="technician-card">
+            <header class="technician-card-heading">
+              <span class="technician-avatar" aria-hidden="true">{{ technicianInitials(item.technicianName) }}</span>
+              <h3 class="technician-name">{{ item.technicianName }}</h3>
+            </header>
+            <div class="technician-metrics">
+              <div class="technician-metric-card">
+                <span class="technician-metric-label">Servicios atendidos</span>
+                <strong class="technician-metric-value">{{ item.attended }}</strong>
+              </div>
+              <div class="technician-metric-card finalized">
+                <span class="technician-metric-label">Servicios finalizados</span>
+                <strong class="technician-metric-value">{{ item.finalized }}</strong>
+              </div>
+            </div>
+            <div class="technician-progress">
+              <div class="technician-progress-heading">
+                <span>Avance de finalización</span>
+                <strong>{{ completionRate(item.attended, item.finalized) }}%</strong>
+              </div>
+              <div class="technician-progress-track" role="progressbar"
+                [attr.aria-label]="'Avance de ' + item.technicianName"
+                [attr.aria-valuenow]="completionRate(item.attended, item.finalized)"
+                aria-valuemin="0" aria-valuemax="100">
+                <span [style.width.%]="completionRate(item.attended, item.finalized)"></span>
+              </div>
+            </div>
+          </article>
+        } @empty {
+          <p class="technician-empty">No hay atenciones para los filtros seleccionados.</p>
+        }
       </div>
       <p class="technician-performance-note">
         “Atendidos” cuenta servicios con una atención técnica guardada. El avance es la proporción finalizada sobre atendidos.
