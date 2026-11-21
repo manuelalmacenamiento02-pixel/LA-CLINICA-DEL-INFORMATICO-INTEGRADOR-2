@@ -56,6 +56,13 @@ export interface BackupRun {
   errorMessage: string | null;
 }
 
+export interface BackupRestoreResult {
+  status: 'COMPLETADO';
+  restoredBackupId: string;
+  safetyBackupId: string;
+  message: string;
+}
+
 export interface MonitorStatus {
   status: string;
   backend: { status: string; message: string };
@@ -116,6 +123,10 @@ export class SprintSixService {
 
   createBackup(): Promise<BackupRun> {
     return this.api.write<BackupRun>('POST', '/admin/backups');
+  }
+
+  restoreBackup(id: string): Promise<BackupRestoreResult> {
+    return this.api.write<BackupRestoreResult>('POST', `/admin/backups/${id}/restore`);
   }
 
   monitoring(): Promise<MonitorStatus> {

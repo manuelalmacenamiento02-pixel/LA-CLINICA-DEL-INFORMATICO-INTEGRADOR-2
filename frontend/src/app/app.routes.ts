@@ -4,7 +4,6 @@ import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { ClientsComponent } from './pages/clients/clients.component';
 import { EquipmentComponent } from './pages/equipment/equipment.component';
 import { LoginComponent } from './pages/login/login.component';
-import { ModulePlaceholderComponent } from './pages/module-placeholder/module-placeholder.component';
 import { UsersComponent } from './pages/users/users.component';
 import { OrdersComponent } from './pages/orders/orders.component';
 import { AssignedOrdersComponent } from './pages/orders/assigned-orders.component';
@@ -117,7 +116,8 @@ export const routes: Routes = [
       },
       {
         path: 'configuracion',
-        component: ModulePlaceholderComponent,
+        loadComponent: () => import('./pages/settings/settings.component')
+          .then((module) => module.SettingsComponent),
         data: { title: 'Configuración', permission: 'settings' },
       },
     ],

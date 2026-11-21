@@ -83,6 +83,17 @@ public class SprintSixController {
         return backupService.create(actorId(request));
     }
 
+    @PostMapping("/admin/backups/{id}/restore")
+    public Map<String, Object> restoreBackup(@PathVariable UUID id, HttpServletRequest request) {
+        Map<String, Object> actor = currentActor(request);
+        if (!"ADMINISTRADOR".equals(actor.get("role"))) {
+            throw new ApiException(org.springframework.http.HttpStatus.FORBIDDEN, "forbidden",
+                "Solo un administrador puede autorizar la restauración de un respaldo.");
+        }
+        String requesterName = (actor.get("firstName") + " " + actor.get("lastName")).toString();
+        return backupService.restore(id, UUID.fromString((String) actor.get("id")), requesterName);
+    }
+
     @GetMapping("/admin/backups/{id}/download")
     public ResponseEntity<FileSystemResource> downloadBackup(@PathVariable UUID id) {
         FileSystemResource resource = backupService.download(id);
@@ -105,8 +116,11 @@ public class SprintSixController {
     }
 
     private UUID actorId(HttpServletRequest request) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> actor = (Map<String, Object>) request.getAttribute("currentUser");
-        return UUID.fromString((String) actor.get("id"));
+        return UUID.fromString((String) currentActor(request).get("id"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> currentActor(HttpServletRequest request) {
+        return (Map<String, Object>) request.getAttribute("currentUser");
     }
 }

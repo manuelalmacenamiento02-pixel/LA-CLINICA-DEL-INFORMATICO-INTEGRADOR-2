@@ -2,17 +2,22 @@ package com.clinicainformatica.api;
 
 import com.zaxxer.hikari.HikariDataSource;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.net.URI;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
+import org.flywaydb.core.Flyway;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -38,15 +44,23 @@ public class BackupService {
     private final SprintSixService sprintSixService;
     private final Path backupDirectory;
     private final String pgDumpExecutable;
+    private final String pgRestoreExecutable;
+    private final BackupMaintenanceGate maintenanceGate;
+    private final Flyway flyway;
 
     public BackupService(JdbcTemplate jdbc, DataSource dataSource, SprintSixService sprintSixService,
         @Value("${clinica.backup.directory:${user.home}/clinica-backups}") String backupDirectory,
-        @Value("${clinica.backup.pg-dump:pg_dump}") String pgDumpExecutable) {
+        @Value("${clinica.backup.pg-dump:pg_dump}") String pgDumpExecutable,
+        @Value("${clinica.backup.pg-restore:pg_restore}") String pgRestoreExecutable,
+        BackupMaintenanceGate maintenanceGate, Flyway flyway) {
         this.jdbc = jdbc;
         this.dataSource = dataSource;
         this.sprintSixService = sprintSixService;
         this.backupDirectory = Path.of(backupDirectory).toAbsolutePath().normalize();
         this.pgDumpExecutable = pgDumpExecutable;
+        this.pgRestoreExecutable = pgRestoreExecutable;
+        this.maintenanceGate = maintenanceGate;
+        this.flyway = flyway;
     }
 
     public Map<String, Object> create(UUID requesterId) {
@@ -145,6 +159,70 @@ public class BackupService {
                 "El archivo de respaldo no está disponible.");
         }
         return new FileSystemResource(file);
+    }
+
+    public Map<String, Object> restore(UUID backupId, UUID requesterId, String requesterName) {
+        maintenanceGate.beginRestoration();
+        try (Connection connection = dataSource.getConnection()) {
+            if (!acquireLock(connection)) {
+                throw new ApiException(HttpStatus.CONFLICT, "backup-in-progress",
+                    "Espera a que termine el respaldo que ya está en ejecución.");
+            }
+            try {
+                BackupArchive target = restoreArchive(backupId);
+                try {
+                    executePgRestore(target.file(), true);
+                } catch (IOException | InterruptedException | SQLException e) {
+                    if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                    recordRestoreFailure(requesterId, backupId, "No se pudo validar el archivo de respaldo.");
+                    throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "backup-validation-failed",
+                        "No se pudo validar el archivo para restauración: " + safeError(e));
+                }
+
+                Map<String, Object> safetyBackup = createWhileLocked(requesterId);
+                UUID safetyBackupId = UUID.fromString(safetyBackup.get("id").toString());
+                Path safetyBackupFile = backupDirectory.resolve(safetyBackupId + ".dump");
+                try {
+                    executePgRestore(target.file(), false);
+                } catch (IOException | InterruptedException | SQLException e) {
+                    if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                    recordRestoreFailure(requesterId, backupId, "Falló la ejecución de pg_restore.");
+                    throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "backup-restore-failed",
+                        "No se pudo restaurar el respaldo. PostgreSQL revirtió los cambios de esta operación: "
+                            + safeError(e));
+                }
+
+                try {
+                    flyway.migrate();
+                } catch (RuntimeException migrationError) {
+                    restoreSafetyBackup(safetyBackupFile, migrationError);
+                    completeRestoration(requesterId, safetyBackupId, safetyBackupId, safetyBackupFile,
+                        safetyBackup.get("checksum").toString());
+                    recordRestoreFailure(requesterId, backupId,
+                        "La copia seleccionada no pudo migrarse; se restauró la copia de seguridad previa.");
+                    throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "backup-version-incompatible",
+                        "Ese respaldo no es compatible con la versión actual. Se recuperó la copia de seguridad previa.");
+                }
+
+                completeRestoration(requesterId, backupId, safetyBackupId, target.file(), target.checksum(),
+                    safetyBackupFile, safetyBackup.get("checksum").toString());
+                LOGGER.log(System.Logger.Level.WARNING, "Restauración autorizada por " + requesterName
+                    + "; respaldo=" + backupId + "; copia de seguridad=" + safetyBackupId);
+                return Map.of(
+                    "status", "COMPLETADO",
+                    "restoredBackupId", backupId.toString(),
+                    "safetyBackupId", safetyBackupId.toString(),
+                    "message", "La restauración terminó correctamente. Se conservó una copia de seguridad previa.");
+            } finally {
+                releaseLock(connection);
+            }
+        } catch (SQLException e) {
+            LOGGER.log(System.Logger.Level.ERROR, "No se pudo completar la conexión para restaurar el respaldo.", e);
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "backup-restore-unavailable",
+                "No se pudo restaurar el respaldo porque PostgreSQL no está disponible.");
+        } finally {
+            maintenanceGate.endRestoration();
+        }
     }
 
     private Map<String, Object> backup(UUID id) {
@@ -248,6 +326,135 @@ public class BackupService {
         }
     }
 
+    private BackupArchive restoreArchive(UUID id) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+            SELECT file_path AS "filePath",checksum_sha256 AS checksum
+            FROM backup_runs WHERE id=? AND status='COMPLETADO'
+            """, id);
+        if (rows.isEmpty() || rows.getFirst().get("filePath") == null
+            || rows.getFirst().get("checksum") == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "backup-not-found",
+                "No se encontró un respaldo completado para restaurar.");
+        }
+        try {
+            Path root = backupDirectory.toRealPath();
+            Path file = Path.of(rows.getFirst().get("filePath").toString()).toRealPath();
+            if (!file.startsWith(root) || !Files.isRegularFile(file)) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "backup-file-unavailable",
+                    "El archivo de respaldo no está disponible en la carpeta protegida.");
+            }
+            String expectedChecksum = rows.getFirst().get("checksum").toString();
+            String actualChecksum = sha256(file);
+            if (!MessageDigest.isEqual(expectedChecksum.getBytes(StandardCharsets.US_ASCII),
+                actualChecksum.getBytes(StandardCharsets.US_ASCII))) {
+                throw new ApiException(HttpStatus.CONFLICT, "backup-checksum-invalid",
+                    "El checksum del respaldo no coincide. No se inició la restauración.");
+            }
+            return new BackupArchive(file, actualChecksum);
+        } catch (IOException e) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "backup-file-unavailable",
+                "El archivo de respaldo no está disponible.");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("No se pudo calcular el checksum SHA-256 del respaldo.", e);
+        }
+    }
+
+    private void executePgRestore(Path archive, boolean listOnly) throws IOException, InterruptedException, SQLException {
+        HikariDataSource hikari = dataSource.unwrap(HikariDataSource.class);
+        DatabaseConnection database = parseJdbcUrl(hikari.getJdbcUrl());
+        List<String> command = new ArrayList<>();
+        command.add(pgRestoreExecutable);
+        if (listOnly) {
+            command.add("--list");
+        } else {
+            command.addAll(List.of("--host", database.host(), "--port", Integer.toString(database.port()),
+                "--username", hikari.getUsername(), "--no-password", "--clean", "--if-exists",
+                "--single-transaction", "--exit-on-error", "--no-owner", "--no-privileges",
+                "--dbname", database.name()));
+        }
+        command.add(archive.toString());
+
+        Path outputFile = Files.createTempFile("clinica-pg-restore-", ".log");
+        try {
+            ProcessBuilder builder = new ProcessBuilder(command);
+            builder.redirectErrorStream(true);
+            builder.redirectOutput(outputFile.toFile());
+            if (!listOnly) {
+                Map<String, String> environment = builder.environment();
+                if (hikari.getPassword() != null && !hikari.getPassword().isEmpty()) {
+                    environment.put("PGPASSWORD", hikari.getPassword());
+                }
+                if (!database.sslMode().isBlank()) {
+                    environment.put("PGSSLMODE", database.sslMode());
+                }
+            }
+            Process process = builder.start();
+            if (!process.waitFor(PROCESS_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+                process.destroyForcibly();
+                process.waitFor();
+                throw new IOException("pg_restore excedió el tiempo máximo de ejecución. " + readLogTail(outputFile));
+            }
+            if (process.exitValue() != 0) {
+                throw new IOException("pg_restore terminó con código " + process.exitValue()
+                    + ". " + readLogTail(outputFile));
+            }
+        } finally {
+            try {
+                Files.deleteIfExists(outputFile);
+            } catch (IOException e) {
+                LOGGER.log(System.Logger.Level.WARNING, "No se pudo limpiar el registro temporal de pg_restore.", e);
+            }
+        }
+    }
+
+    private String readLogTail(Path outputFile) throws IOException {
+        long size = Files.size(outputFile);
+        int length = (int) Math.min(size, 2_048);
+        ByteBuffer buffer = ByteBuffer.allocate(length);
+        try (FileChannel channel = FileChannel.open(outputFile, StandardOpenOption.READ)) {
+            channel.position(Math.max(0, size - length));
+            while (buffer.hasRemaining() && channel.read(buffer) != -1) {
+                // Read only the bounded tail needed to diagnose a failed restore.
+            }
+        }
+        return StandardCharsets.UTF_8.decode(buffer.flip()).toString().trim();
+    }
+
+    private void restoreSafetyBackup(Path safetyBackupFile, RuntimeException migrationError) {
+        try {
+            executePgRestore(safetyBackupFile, false);
+            flyway.migrate();
+        } catch (IOException | InterruptedException | SQLException | RuntimeException recoveryError) {
+            if (recoveryError instanceof InterruptedException) Thread.currentThread().interrupt();
+            LOGGER.log(System.Logger.Level.ERROR,
+                "No se pudo recuperar el estado previo después de fallar la migración del respaldo.",
+                recoveryError);
+            migrationError.addSuppressed(recoveryError);
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "backup-recovery-failed",
+                "Falló la migración y también la recuperación automática. Se requiere intervención técnica inmediata.");
+        }
+    }
+
+    private void completeRestoration(UUID actorId, UUID restoredBackupId, UUID safetyBackupId,
+        Path restoredFile, String restoredChecksum, Path safetyBackupFile, String safetyChecksum) {
+        sprintSixService.completeRestoration(actorId, restoredBackupId, safetyBackupId,
+            restoredFile.toString(), restoredChecksum, safetyBackupFile.toString(), safetyChecksum);
+    }
+
+    private void completeRestoration(UUID actorId, UUID restoredBackupId, UUID safetyBackupId,
+        Path safetyBackupFile, String safetyChecksum) {
+        sprintSixService.completeRestoration(actorId, restoredBackupId, safetyBackupId,
+            safetyBackupFile.toString(), safetyChecksum, safetyBackupFile.toString(), safetyChecksum);
+    }
+
+    private void recordRestoreFailure(UUID actorId, UUID backupId, String description) {
+        try {
+            sprintSixService.recordRestoreEvent(actorId, backupId, "FAILED", description);
+        } catch (DataAccessException e) {
+            LOGGER.log(System.Logger.Level.ERROR, "No se pudo registrar el fallo de restauración.", e);
+        }
+    }
+
     private DatabaseConnection parseJdbcUrl(String jdbcUrl) throws IOException {
         try {
             URI uri = URI.create(jdbcUrl.substring("jdbc:".length()));
@@ -317,4 +524,5 @@ public class BackupService {
     }
 
     private record DatabaseConnection(String host, int port, String name, String sslMode) {}
+    private record BackupArchive(Path file, String checksum) {}
 }

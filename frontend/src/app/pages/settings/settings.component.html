@@ -1,0 +1,60 @@
+<section class="settings-page" aria-labelledby="settings-title">
+  <div class="page-heading">
+    <div>
+      <h1 id="settings-title">Configuración</h1>
+      <p>Administración segura de respaldos del sistema.</p>
+    </div>
+  </div>
+
+  @if (error()) { <p class="users-feedback error" role="alert">{{ error() }}</p> }
+  @if (notice()) { <p class="users-feedback success" role="status">{{ notice() }}</p> }
+
+  <section class="restore-card" aria-labelledby="restore-title">
+    <header class="restore-card-heading">
+      <span class="restore-icon" aria-hidden="true">↻</span>
+      <div>
+        <h2 id="restore-title">Restaurar sistema desde un respaldo</h2>
+        <p>Esta acción está disponible únicamente para administradores.</p>
+      </div>
+    </header>
+
+    <div class="restore-warning" role="note">
+      <strong>La restauración reemplaza los datos actuales.</strong>
+      <p>Antes de continuar, el sistema generará un respaldo de seguridad y bloqueará temporalmente las demás operaciones.</p>
+      <p>Se comprobará el archivo y se intentará aplicar la restauración en una sola transacción.</p>
+    </div>
+
+    <div class="restore-controls">
+      <label for="restore-backup">Respaldo completado</label>
+      <select id="restore-backup" [value]="selectedBackupId()"
+        (change)="updateSelection($event)"
+        [disabled]="loading() || restoring()">
+        <option value="">Selecciona un respaldo</option>
+        @for (backup of backups(); track backup.id) {
+          @if (backup.status === 'COMPLETADO') {
+            <option [value]="backup.id">
+              {{ formatDate(backup.startedAt) }} · {{ backup.fileName || backup.id }}
+              · {{ formatSize(backup.sizeBytes) }}
+            </option>
+          }
+        }
+      </select>
+
+      <div class="restore-actions">
+        <button class="secondary-button" type="button" [disabled]="loading() || restoring()"
+          (click)="refresh()">
+          {{ loading() ? 'Cargando respaldos…' : 'Actualizar lista' }}
+        </button>
+        <button class="restore-button" type="button"
+          [disabled]="!selectedBackupId() || loading() || restoring()"
+          (click)="restoreSelected()">
+          {{ restoring() ? 'Restaurando… no cierres esta página' : 'Autorizar restauración' }}
+        </button>
+      </div>
+    </div>
+
+    @if (!loading() && !hasCompletedBackups()) {
+      <p class="restore-empty">No hay respaldos completados disponibles para restaurar.</p>
+    }
+  </section>
+</section>

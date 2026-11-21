@@ -263,4 +263,34 @@ public class SprintSixService {
             """, actorId, "BACKUP", "backup_runs", backupId, result, description);
     }
 
+    @Transactional
+    public void completeRestoration(UUID actorId, UUID restoredBackupId, UUID safetyBackupId,
+        String restoredFile, String restoredChecksum, String safetyBackupFile, String safetyChecksum) {
+        UUID persistedActorId = jdbc.queryForList(
+            "SELECT id FROM users WHERE id=?", actorId).isEmpty() ? null : actorId;
+        upsertCompletedBackup(persistedActorId, restoredBackupId, restoredFile, restoredChecksum);
+        upsertCompletedBackup(persistedActorId, safetyBackupId, safetyBackupFile, safetyChecksum);
+        recordBackupEvent(persistedActorId, safetyBackupId, "SUCCESS",
+            "Copia de seguridad previa a la restauración");
+        recordRestoreEvent(persistedActorId, restoredBackupId, "SUCCESS",
+            "Restauración autorizada por administrador " + actorId);
+    }
+
+    @Transactional
+    public void recordRestoreEvent(UUID actorId, UUID backupId, String result, String description) {
+        jdbc.update("""
+            INSERT INTO system_events(actor_id,event_type,entity_type,entity_id,result,description)
+            VALUES (?,'RESTORE_BACKUP','backup_runs',?,?,?)
+            """, actorId, backupId, result, description);
+    }
+
+    private void upsertCompletedBackup(UUID actorId, UUID backupId, String filePath, String checksum) {
+        jdbc.update("""
+            INSERT INTO backup_runs(id,requested_by,status,file_path,checksum_sha256,started_at,finished_at)
+            VALUES (?,?,'COMPLETADO',?,?,now(),now())
+            ON CONFLICT(id) DO UPDATE SET status='COMPLETADO',file_path=EXCLUDED.file_path,
+              checksum_sha256=EXCLUDED.checksum_sha256,finished_at=now(),error_message=NULL
+            """, backupId, actorId, filePath, checksum);
+    }
+
 }

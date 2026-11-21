@@ -35,9 +35,11 @@ Gemini es opcional para iniciar el backend. Obtén una clave de Gemini API desde
 
 La generación administrativa de respaldos requiere `pg_dump` ejecutable por la cuenta del backend. Configura `PG_DUMP_PATH` si no está en `PATH`; opcionalmente configura `CLINICA_BACKUP_DIR` para cambiar la carpeta protegida de respaldos (por defecto, `%USERPROFILE%\clinica-backups`). Los respaldos se generan en formato custom y se pueden descargar desde la pantalla **Respaldos**. También se genera uno automáticamente cada día a las 02:00 UTC y se eliminan las copias completadas después de 30 días. Puedes ajustar el horario con `CLINICA_BACKUP_CRON`, la zona con `CLINICA_BACKUP_TIME_ZONE` y la retención con `CLINICA_BACKUP_RETENTION_DAYS`.
 
-En Railway, configura el servicio del backend para usar el directorio raíz `/backend`; el [Dockerfile](./backend/Dockerfile) instala `pg_dump` 18. Adjunta un volumen persistente al servicio en `/data/backups` y define `CLINICA_BACKUP_DIR=/data/backups`. Sin el volumen, los archivos locales del contenedor pueden perderse al redeplegar; las copias no sustituyen los respaldos administrados de PostgreSQL en Railway.
+Solo un administrador puede restaurar un respaldo desde **Configuración**. Antes de reemplazar datos se verifica el SHA-256 y el catálogo del archivo, se genera una copia de seguridad previa, se bloquean temporalmente las solicitudes de la aplicación y se ejecuta `pg_restore` en una sola transacción. Flyway aplica las migraciones pendientes del respaldo. Si la migración falla, el backend intenta recuperar la copia previa. La restauración necesita `pg_restore` (configurable con `PG_RESTORE_PATH`) y almacenamiento persistente para la copia de seguridad previa.
 
-Para probar una restauración, utiliza exclusivamente una base de datos temporal y sigue el procedimiento de [database/README.md](./backend/database/README.md). No restaures sobre la base activa.
+En Railway, configura el servicio del backend para usar el directorio raíz `/backend`; el [Dockerfile](./backend/Dockerfile) instala `pg_dump` y `pg_restore` 18. Adjunta un volumen persistente al servicio en `/data/backups` y define `CLINICA_BACKUP_DIR=/data/backups`. Sin el volumen, los archivos locales del contenedor pueden perderse al redeplegar; las copias no sustituyen los respaldos administrados de PostgreSQL en Railway.
+
+Prueba el procedimiento primero en una base de datos temporal siguiendo [database/README.md](./backend/database/README.md). La restauración sobre la base activa está disponible únicamente a un administrador, después de confirmar el reemplazo y generar una copia de seguridad previa; aun así, verifica que el respaldo sea el correcto antes de autorizarla.
 
 ## Módulos Sprint 6
 

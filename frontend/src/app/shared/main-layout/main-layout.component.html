@@ -70,9 +70,54 @@
       </div>
 
       <div class="topbar-actions">
-        <button class="icon-button" type="button" aria-label="Notificaciones">
-          <app-icon name="bell" />
-        </button>
+        @if (isMonitoringAdmin()) {
+          <div class="notification-menu">
+            <button class="icon-button notification-button" type="button"
+              [attr.aria-label]="'Alertas del sistema: ' + notifications().length"
+              [attr.aria-expanded]="notificationsOpen()"
+              (click)="toggleNotifications()">
+              <app-icon name="bell" />
+              @if (notifications().length > 0) {
+                <span class="notification-count">{{ notifications().length > 9 ? '9+' : notifications().length }}</span>
+              }
+            </button>
+            @if (notificationsOpen()) {
+              <section class="notification-panel" aria-label="Alertas proactivas">
+                <header class="notification-panel-heading">
+                  <div>
+                    <h2>Alertas del sistema</h2>
+                    <p>Revisión automática cada minuto</p>
+                  </div>
+                  <button type="button" class="notification-clear"
+                    [disabled]="notifications().length === 0" (click)="clearNotifications()">
+                    Limpiar
+                  </button>
+                </header>
+                @if (notifications().length > 0) {
+                  <ul class="notification-list">
+                    @for (alert of notifications(); track alert.id) {
+                      <li class="notification-item"
+                        [class.error]="alert.severity === 'error'"
+                        [class.success]="alert.severity === 'success'">
+                        <span class="notification-indicator" aria-hidden="true"></span>
+                        <div>
+                          <strong>{{ alert.title }}</strong>
+                          <p>{{ alert.message }}</p>
+                          <time>{{ formatAlertTime(alert.createdAt) }}</time>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="notification-empty">No hay incidencias nuevas.</p>
+                }
+                <footer class="notification-panel-footer">
+                  Los avisos requieren que esta aplicación esté abierta y con sesión de administrador.
+                </footer>
+              </section>
+            }
+          </div>
+        }
         <div class="profile-summary">
           <span class="profile-avatar">{{ profileInitials() }}</span>
           <span class="profile-copy">
